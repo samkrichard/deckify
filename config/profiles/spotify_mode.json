@@ -1,0 +1,54 @@
+{
+  "profile_name": "spotify_mode",
+  "buttons": {
+    "0": {
+      "action": "play_liked_songs",
+      "label": "Liked Songs"
+    },
+    "1": {
+      "action": "play_playlist",
+      "args": ["spotify:playlist:37i9dQZEVXcOVTPpmeJTxX"],
+      "label": "Discover Weekly"
+    },
+    "2": {
+      "action": "start_recommendations",
+      "label": "Radio"
+    },
+    "3": {
+      "action": "like_current_track",
+      "label": "Like Track"
+    },
+    "4": {
+      "action": "previous_track",
+      "label": "Previous",
+      "icon": "./assets/back.png"
+    },
+    "5": {
+      "action": "play_pause",
+      "label": "Play/Pause",
+      "icon": "./assets/play.png"
+    },
+    "6": {
+      "action": "next_track",
+      "label": "Next",
+      "icon": "./assets/skip.png"
+    },
+    "7": {
+      "action": "toggle_shuffle",
+      "label": "Shuffle",
+      "icon": "./assets/shuffle.png"
+    }
+  },
+
+  "dials": {
+    "dial_0_clockwise": { 
+      "action": "volume_up" 
+    },
+    "dial_0_counterclockwise": { 
+      "action": "volume_down" 
+    },
+    "dial_0_push": {
+       "action": "toggle_mute" 
+    }
+  }
+}
