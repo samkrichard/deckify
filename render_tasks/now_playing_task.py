@@ -29,9 +29,15 @@ class NowPlayingTask:
         # --- Metadata ---
         title = self.info.get("track", "Unknown Track")
         artist = self.info.get("artist", "Unknown Artist")
-        progress = self.info.get("progress", 0)
+        # Dynamic progress: advance elapsed time if playing, else static
+        orig_progress = self.info.get("progress", 0)
         duration = self.info.get("duration", 1)
-        pct = min(progress / duration, 1.0)
+        if self.info.get("is_playing", False):
+            elapsed = orig_progress + int((now - self.start_time) * 1000)
+        else:
+            elapsed = orig_progress
+        progress = min(elapsed, duration)
+        pct = progress / duration if duration > 0 else 0.0
 
         try:
             font = ImageFont.truetype("DejaVuSans-Bold.ttf", 20)

@@ -20,6 +20,9 @@ class StreamDeckDeviceManager:
 
         print(f"[OK] Connected to Stream Deck: {self.deck.id()} ({self.deck.key_count()} keys)")
 
+        if renderer:
+            renderer.deck = self.deck
+
         self.button_action_map = build_button_action_map(
             config_path, controller, renderer
         )
@@ -45,7 +48,7 @@ class StreamDeckDeviceManager:
 
     def _button_callback(self, deck, key, state):
         if state:  # Only on press
-            action = self.button_action_map.get(str(key))
+            action = self.button_action_map.get(key)
             if action:
                 try:
                     action()

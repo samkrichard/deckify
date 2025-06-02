@@ -19,7 +19,7 @@ class AppController:
         self.spotify = SpotifyController(self.screen)
 
         # Register controller actions to buttons/dials
-        self.device_manager.initialize(self.config_path, self.spotify, self.screen)
+        self.device_manager.initialize(self.config_path, self.spotify, self.screen.renderer)
 
         # Future controllers could go here:
         # self.chat = ChatController(self.screen)
