@@ -1,7 +1,5 @@
 import json
 
-import json
-
 def build_button_action_map(config_path, controller, renderer=None):
     with open(config_path, 'r') as f:
         config = json.load(f)
@@ -9,34 +7,37 @@ def build_button_action_map(config_path, controller, renderer=None):
     buttons = config.get("buttons", {})
     button_map = {}
 
-    for key, entry in buttons.items():
+    for key_str, entry in buttons.items():
+        key = int(key_str)
         action_name = entry.get("action")
         args = entry.get("args", [])
-        label = entry.get("label")
-        icon = entry.get("icon")
+        label = entry.get("label", "")
+        icon = entry.get("icon", "")
 
         method = getattr(controller, action_name, None)
         if not callable(method):
             print(f"[WARN] No method '{action_name}' found in controller for button {key}")
             continue
 
-        # Icon fetch logic
+        # Fetch icon if needed
         if icon == "fetch" and action_name == "play_playlist" and args:
-            icon_url = controller.get_playlist_icon_url(args[0])
-        else:
-            icon_url = icon
+            try:
+                icon = controller.get_playlist_icon_url(args[0])
+            except Exception as e:
+                print(f"[WARN] Failed to fetch icon for playlist: {e}")
 
-        # Render if renderer is present
+        # Update button display
         if renderer:
             try:
-                renderer.update_button(int(key), text=label, image=icon_url)
+                renderer.update_button(key, text=label, image=icon)
             except Exception as e:
                 print(f"[WARN] Failed to render button {key}: {e}")
 
-        # Action binding
-        button_map[key] = lambda *_, m=method, a=args: m(*a)
+        # Bind action (fix lambda closure bug using default args)
+        button_map[key] = (lambda m=method, a=args: m(*a))
 
     return button_map
+
 
 def build_dial_action_map(config_path, controller):
     with open(config_path, 'r') as f:
@@ -51,7 +52,9 @@ def build_dial_action_map(config_path, controller):
         if not callable(method):
             print(f"[WARN] No method '{action_name}' found in controller for dial '{dial_key}'")
             continue
-        dial_map[dial_key] = lambda *_, m=method: m()
+
+        # Bind action safely
+        dial_map[dial_key] = (lambda m=method: m())
 
     return dial_map
 

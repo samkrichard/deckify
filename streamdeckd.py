@@ -1,24 +1,18 @@
 import os
-import signal
 from dotenv import load_dotenv
-from streamdeck.device_manager import StreamDeckDeviceManager
-from actions.spotify_controller import SpotifyController
-
+from app_controller import AppController
 
 def main():
+    # Load env vars (for Spotify credentials etc.)
     load_dotenv()
 
-    controller = SpotifyController()
+    # Path to your profile config (buttons, dials)
     config_path = os.path.join("config", "profiles", "spotify_mode.json")
 
-    deck_manager = StreamDeckDeviceManager(controller, config_path)
-    deck_manager.initialize()
-
-    print("[OK] Stream Deck Spotify profile loaded. Press Ctrl+C to exit.")
-
-    # Wait here until a signal is caught; device manager handles shutdown
-    signal.pause()
-
+    # Initialize and run the app
+    app = AppController(config_path)
+    app.run()
 
 if __name__ == "__main__":
     main()
+
