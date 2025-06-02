@@ -1,6 +1,6 @@
 import time
 import asyncio
-from display import Renderer  # Your existing PIL-based renderer
+from render.display import Renderer  # Your existing PIL-based renderer
 
 class ScreenManager:
     def __init__(self, deck):

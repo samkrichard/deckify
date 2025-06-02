@@ -5,8 +5,8 @@ from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
 from PIL import Image
 from io import BytesIO
-from render_tasks.now_playing_task import NowPlayingTask  # You’ll create this
-from render_tasks.volume_toast_task import VolumeToastTask
+from render.tasks.render_tasks.now_playing_task import NowPlayingTask
+from render.tasks.render_tasks.volume_toast_task import VolumeToastTask
 from dotenv import load_dotenv
 
 load_dotenv()

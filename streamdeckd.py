@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from app_controller import AppController
+from controllers.app_controller import AppController
 
 def main():
     # Load env vars (for Spotify credentials etc.)

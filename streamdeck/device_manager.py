@@ -1,6 +1,6 @@
 from StreamDeck.DeviceManager import DeviceManager as HardwareDeviceManager
 from StreamDeck.Devices.StreamDeckPlus import DialEventType
-from action_map import build_button_action_map, build_dial_action_map
+from actions.action_map import build_button_action_map, build_dial_action_map
 
 class StreamDeckDeviceManager:
     def __init__(self):
