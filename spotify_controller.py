@@ -205,7 +205,7 @@ class SpotifyController:
             volume = playback.get("device", {}).get("volume_percent", 0) if playback else 0
             new_volume = min(volume + 10, 100)
             self.sp.volume(new_volume)
-            self.screen.show_toast(VolumeToastTask(self.screen, new_volume))
+            self.screen.show_toast(VolumeToastTask(self.screen, volume, new_volume))
         except Exception as e:
             print(f"[ERROR] Failed to increase volume: {e}")
 
@@ -216,7 +216,7 @@ class SpotifyController:
             volume = playback.get("device", {}).get("volume_percent", 0) if playback else 0
             new_volume = max(volume - 10, 0)
             self.sp.volume(new_volume)
-            self.screen.show_toast(VolumeToastTask(self.screen, new_volume))
+            self.screen.show_toast(VolumeToastTask(self.screen, volume, new_volume))
         except Exception as e:
             print(f"[ERROR] Failed to decrease volume: {e}")
 
@@ -233,6 +233,6 @@ class SpotifyController:
                 prev = getattr(self, "_previous_volume", 50)
                 self.sp.volume(prev)
                 current = prev
-            self.screen.show_toast(VolumeToastTask(self.screen, current))
+            self.screen.show_toast(VolumeToastTask(self.screen, volume, current))
         except Exception as e:
             print(f"[ERROR] Failed to toggle mute: {e}")
