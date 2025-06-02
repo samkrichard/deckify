@@ -1,4 +1,5 @@
 import time
+import asyncio
 from device_manager import StreamDeckDeviceManager
 from spotify_controller import SpotifyController
 from screen_manager import ScreenManager  # You'll build this
@@ -25,28 +26,35 @@ class AppController:
         # self.chat = ChatController(self.screen)
         # self.volume = VolumeController(...)
 
-        self._tick_rate = 1 / 60  # 60 FPS render loop
+        self._tick_rate = 1 / 5  # 5 FPS render loop (200ms per frame)
 
     def run(self):
-        print("[APP] Main loop started.")
+        """Start the main async event loop for device input and rendering."""
         try:
-            while True:
-                now = time.time()
-
-                # Update logical systems
-                self.spotify.update(now)
-                # self.chat.update(now)
-
-                # Handle device input (you could move polling logic here)
-                self.device_manager.update(now)
-
-                # Run render pipeline
-                self.screen.update(now)
-
-                time.sleep(self._tick_rate)
+            asyncio.run(self._run_loop())
         except KeyboardInterrupt:
             self.shutdown()
 
+    async def _run_loop(self):
+        print("[APP] Main loop started.")
+        next_tick = time.time()
+        while True:
+            now = time.time()
+
+            # Handle device input (polling moved off the UI thread)
+            self.device_manager.update(now)
+
+            # Run render pipeline asynchronously
+            await self.screen.update_async(now)
+
+            # Frame-lock to a steady tick rate
+            next_tick += self._tick_rate
+            sleep_for = next_tick - time.time()
+            if sleep_for > 0:
+                await asyncio.sleep(sleep_for)
+
     def shutdown(self):
         print("[APP] Shutting down.")
+        # Stop background polling thread
+        self.spotify.shutdown()
         self.device_manager.shutdown()

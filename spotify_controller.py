@@ -35,6 +35,11 @@ class SpotifyController:
         self._poll_interval = 1.0
         self._last_poll_time = 0.0
 
+        # Start background polling thread to avoid blocking the UI/render loop
+        self._stop_event = threading.Event()
+        self._poll_thread = threading.Thread(target=self._poll_loop, daemon=True)
+        self._poll_thread.start()
+
     def update(self, now):
         if now - self._last_poll_time < self._poll_interval:
             return
@@ -92,6 +97,21 @@ class SpotifyController:
         except Exception as e:
             print(f"[WARN] Failed to fetch album art: {e}")
             return None
+
+    def _poll_loop(self):
+        """Background loop to poll Spotify at regular intervals."""
+        while not self._stop_event.is_set():
+            now = time.time()
+            try:
+                self.update(now)
+            except Exception as e:
+                print(f"[ERROR] Spotify polling loop failed: {e}")
+            time.sleep(self._poll_interval)
+
+    def shutdown(self):
+        """Stop the background polling thread."""
+        self._stop_event.set()
+        self._poll_thread.join()
 
     def get_playlist_icon_url(self, playlist_uri):
         """Fetch the playlist cover image URL for a given playlist URI."""
