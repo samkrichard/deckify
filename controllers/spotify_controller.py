@@ -61,6 +61,15 @@ class SpotifyController:
 
                 task = NowPlayingTask(info, art)
                 self.screen.set_view(task)
+            else:
+                task = self.screen.current_task
+                if isinstance(task, NowPlayingTask):
+                    expected = task.info.get("progress", 0) + int((now - task.start_time) * 1000)
+                    actual = info.get("progress", 0)
+                    if abs(actual - expected) > 500:
+                        art = self._get_album_art(info["art_url"])
+                        task = NowPlayingTask(info, art)
+                        self.screen.set_view(task)
 
         except Exception as e:
             print(f"[ERROR] Spotify update failed: {e}")
@@ -236,3 +245,11 @@ class SpotifyController:
             self.screen.show_toast(VolumeToastTask(self.screen, volume, current))
         except Exception as e:
             print(f"[ERROR] Failed to toggle mute: {e}")
+
+    def seek(self, position_ms):
+        """Seek to a specified position (milliseconds) in the current track."""
+        try:
+            self.sp.seek_track(position_ms)
+        except Exception as e:
+            print(f"[ERROR] Failed to seek to position {position_ms}: {e}")
+
