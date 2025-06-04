@@ -24,6 +24,9 @@ class SpotifyController:
     def __init__(self, screen_manager):
         self.screen = screen_manager
 
+        # Try to access the renderer if available from the screen manager
+        self.renderer = getattr(screen_manager, 'renderer', None)
+
         self.sp = Spotify(auth_manager=SpotifyOAuth(scope=" ".join(SCOPES)))
 
         self._last_track_id = None
@@ -71,6 +74,14 @@ class SpotifyController:
                         task = NowPlayingTask(info, art)
                         self.screen.set_view(task)
 
+            # --- Play/Pause icon toggle logic ---
+            renderer = self.renderer or getattr(self.screen, 'renderer', None)
+            if renderer:
+                icon = "./assets/pause.png" if is_playing else "./assets/play.png"
+                try:
+                    renderer.update_button(5, image=icon)
+                except Exception as e:
+                    print(f"[WARN] Failed to update play/pause button icon: {e}")
         except Exception as e:
             print(f"[ERROR] Spotify update failed: {e}")
 
