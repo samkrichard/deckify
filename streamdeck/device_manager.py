@@ -64,6 +64,7 @@ class StreamDeckDeviceManager:
                     action()
                 except Exception as e:
                     print(f"[ERROR] Button {key} action failed: {e}")
+            self.controller.update(time.time())
 
     def _dial_callback(self, deck, dial, event, value):
         try:
@@ -90,6 +91,9 @@ class StreamDeckDeviceManager:
             return
         x = value.get('x')
         y = value.get('y')
+
+        print(f'Touch at x: {x}, y: {y}')
+
         if x is None or y is None:
             return
         width = deck.TOUCHSCREEN_PIXEL_WIDTH
@@ -110,7 +114,7 @@ class StreamDeckDeviceManager:
         bar_h = 6
         bar_w = width - bar_x - tw - 2 * pad
         # Check if tap is within progress bar region
-        if not (bar_x <= x <= bar_x + bar_w and bar_y <= y <= bar_y + bar_h):
+        if not (bar_x <= x <= bar_x + bar_w and bar_y - 16 <= y <= deck.TOUCHSCREEN_PIXEL_HEIGHT):
             return
         pct_touch = (x - bar_x) / bar_w
         position = int(duration * pct_touch)
@@ -118,4 +122,5 @@ class StreamDeckDeviceManager:
             self.controller.seek(position)
         except Exception as e:
             print(f"[ERROR] Scrub action failed: {e}")
+        self.controller.update(time.time())
 

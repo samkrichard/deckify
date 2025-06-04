@@ -8,7 +8,8 @@
     "1": {
       "action": "play_playlist",
       "args": ["spotify:playlist:37i9dQZEVXcOVTPpmeJTxX"],
-      "label": "Discover Weekly"
+      "label": "Discover Weekly",
+      "icon": "./assets/discover_weekly.jpeg"
     },
     "2": {
       "action": "start_recommendations",

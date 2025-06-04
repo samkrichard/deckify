@@ -35,7 +35,7 @@ class SpotifyController:
         self._cached_art_url = None
         self._cached_art_image = None
 
-        self._poll_interval = 1.0
+        self._poll_interval = 2.0
         self._last_poll_time = 0.0
 
         # Start background polling thread to avoid blocking the UI/render loop
