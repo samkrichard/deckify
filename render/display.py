@@ -69,22 +69,21 @@ class Renderer:
     def render_volume_toast_image(self, volume: int, width=800, height=100):
         margin = 20
         bar_margin = 6
-        outline_radius = 30
 
-        bar_width = int(((volume / 100) * (width - 2 * (margin + bar_margin))))
+        bar_width = int((volume / 100) * (width - 2 * (margin + bar_margin)))
 
         img = Image.new('RGB', (width, height), 'black')
         draw = ImageDraw.Draw(img)
 
-        # Outer pill
+        # Outer outline rectangle
         outer_rect = [margin, height//2 - 20, width - margin, height//2 + 20]
-        draw.rounded_rectangle(outer_rect, radius=outline_radius, outline='white', width=2)
+        draw.rectangle(outer_rect, outline='white', width=2)
 
         # Inner fill bar
         fill_left = margin + bar_margin
         fill_right = fill_left + bar_width
         fill_rect = [fill_left, height//2 - 16, fill_right, height//2 + 16]
-        draw.rounded_rectangle(fill_rect, radius=outline_radius-4, fill='white')
+        draw.rectangle(fill_rect, fill='white')
 
         # Volume text
         try:
@@ -158,7 +157,7 @@ class Renderer:
         draw.text((text_x, text_y + spacing), artist, font=font, fill="gray")
 
     
-    # --- Progress Bar to the right of Album Art ---
+        # --- Progress Bar to the right of Album Art ---
         def ms_to_minsec(ms):
             seconds = ms // 1000
             return f"{seconds // 60}:{seconds % 60:02}"
@@ -196,23 +195,14 @@ class Renderer:
         draw.text((bar_x + bar_width + padding, bar_y - timestamp_offset_y), total_str, font=time_font, fill="white")
 
         # Draw progress bar
-        radius = bar_height // 2
         bar_bg_box = [bar_x, bar_y, bar_x + bar_width, bar_y + bar_height]
-        draw.rounded_rectangle(bar_bg_box, radius=radius, fill="gray")
+        draw.rectangle(bar_bg_box, fill="gray")
 
         fill_width = int(bar_width * pct)
         if fill_width > 0:
             bar_fg_box = [bar_x, bar_y, bar_x + fill_width, bar_y + bar_height]
-            draw.rounded_rectangle(bar_fg_box, radius=radius, fill="white")
+            draw.rectangle(bar_fg_box, fill="white")
 
 
 
         return img
-
-
-
-
-
-
-
-

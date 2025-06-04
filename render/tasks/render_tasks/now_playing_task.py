@@ -144,11 +144,10 @@ class NowPlayingTask:
         draw.text((100 + pad, bar_y - toff), elapsed_str, font=small_font, fill="white")
         draw.text((bar_x + bar_w + pad, bar_y - toff), total_str, font=small_font, fill="white")
 
-        radius = bar_h // 2
-        draw.rounded_rectangle([bar_x, bar_y, bar_x + bar_w, bar_y + bar_h], radius=radius, fill="gray")
+        draw.rectangle([bar_x, bar_y, bar_x + bar_w, bar_y + bar_h], fill="gray")
         fill_w = int(bar_w * pct)
         if fill_w > 0:
-            draw.rounded_rectangle([bar_x, bar_y, bar_x + fill_w, bar_y + bar_h], radius=radius, fill="white")
+            draw.rectangle([bar_x, bar_y, bar_x + fill_w, bar_y + bar_h], fill="white")
 
     def _draw_controls(self, img, width, height):
         """Draw shuffle and repeat/loop cycle icons at the top-right of the screen."""
