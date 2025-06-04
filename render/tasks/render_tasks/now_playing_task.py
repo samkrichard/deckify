@@ -2,6 +2,12 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 import time
 
 class NowPlayingTask:
+    ICON_NAMES = ["shuffle", "repeat"]
+    ICON_SIZE = 40
+    ICON_PADDING = 8
+    ICON_MARGIN_RIGHT = 16
+    ICON_MARGIN_TOP = 16
+    ICON_PADDING_TEXT = 16
     def __init__(self, info: dict, album_art):
         self.info = info
         self.album_art = album_art
@@ -30,7 +36,7 @@ class NowPlayingTask:
         self._draw_title(img, title, font, now, width)
         self._draw_artist(img, artist, font, now, width)
         self._draw_progress_bar(draw, small_font, progress, duration, pct, width, height)
-
+        self._draw_controls(img, width, height)
         return img
 
     def _draw_album_art(self, img):
@@ -65,7 +71,9 @@ class NowPlayingTask:
     def _draw_title(self, img, title, font, now, width):
         spacing = 28
         text_x, text_y = 110, 20
-        area = width - text_x - 20
+        group_w = (len(self.ICON_NAMES) * self.ICON_SIZE +
+                   (len(self.ICON_NAMES) - 1) * self.ICON_PADDING)
+        area = width - text_x - self.ICON_PADDING_TEXT - self.ICON_MARGIN_RIGHT - group_w
 
         bbox = font.getbbox(title)
         title_w = bbox[2] - bbox[0]
@@ -90,7 +98,9 @@ class NowPlayingTask:
     def _draw_artist(self, img, artist, font, now, width):
         spacing = 28
         text_x, text_y = 110, 20
-        area = width - text_x - 20
+        group_w = (len(self.ICON_NAMES) * self.ICON_SIZE +
+                   (len(self.ICON_NAMES) - 1) * self.ICON_PADDING)
+        area = width - text_x - self.ICON_PADDING_TEXT - self.ICON_MARGIN_RIGHT - group_w
 
         bbox = font.getbbox(artist)
         artist_w = bbox[2] - bbox[0]
@@ -139,3 +149,75 @@ class NowPlayingTask:
         fill_w = int(bar_w * pct)
         if fill_w > 0:
             draw.rounded_rectangle([bar_x, bar_y, bar_x + fill_w, bar_y + bar_h], radius=radius, fill="white")
+
+    def _draw_controls(self, img, width, height):
+        """Draw shuffle and repeat/loop cycle icons at the top-right of the screen."""
+        count = len(self.ICON_NAMES)
+        group_w = count * self.ICON_SIZE + (count - 1) * self.ICON_PADDING
+        start_x = width - self.ICON_MARGIN_RIGHT - group_w
+        y = self.ICON_MARGIN_TOP
+        for idx, name in enumerate(self.ICON_NAMES):
+            x = start_x + idx * (self.ICON_SIZE + self.ICON_PADDING)
+            if name == "shuffle":
+                base = "./assets/shuffle.png"
+                on = self.info.get("shuffle_state", False)
+                color = (255, 255, 255) if on else (128, 128, 128)
+            elif name == "repeat":
+                state = self.info.get("repeat_state", "off")
+                if state == "track":
+                    base = "./assets/loop.png"
+                    color = (255, 255, 255)
+                elif state == "context":
+                    base = "./assets/repeat.png"
+                    color = (255, 255, 255)
+                else:
+                    base = "./assets/repeat.png"
+                    color = (128, 128, 128)
+            else:
+                continue
+            try:
+                raw = Image.open(base).convert("RGBA")
+                mask = raw.getchannel("A")
+                icon = Image.new("RGBA", raw.size, color + (255,))
+                icon.putalpha(mask)
+                icon = icon.resize((self.ICON_SIZE, self.ICON_SIZE), Image.LANCZOS)
+                img.paste(icon, (x, y), icon)
+            except Exception as e:
+                print(f"[WARN] Failed to draw control '{name}': {e}")
+
+    def handle_touch(self, x, y, width, height, now):
+        """
+        Handle tap events on now playing screen.
+        Return {'action': 'toggle_shuffle'|'toggle_repeat'|'seek', 'position': int} or None.
+        """
+        size = self.ICON_SIZE
+        pad = self.ICON_PADDING
+        count = len(self.ICON_NAMES)
+        group_w = count * size + (count - 1) * pad
+        start_x = width - self.ICON_MARGIN_RIGHT - group_w
+        start_y = self.ICON_MARGIN_TOP
+        if start_x <= x < start_x + group_w and start_y <= y < start_y + size:
+            idx = int((x - start_x) // (size + pad))
+            name = self.ICON_NAMES[idx]
+            if name == "shuffle":
+                return {"action": "toggle_shuffle"}
+            if name == "repeat":
+                return {"action": "toggle_repeat"}
+        progress, duration, pct = self._compute_progress(now)
+        elapsed_str = self._ms_to_minsec(progress)
+        total_str = self._ms_to_minsec(duration)
+        _, small_font = self._get_fonts()
+        eb = small_font.getbbox(elapsed_str)
+        tb = small_font.getbbox(total_str)
+        ew = eb[2] - eb[0]
+        tw = tb[2] - tb[0]
+        pad = 10
+        art_width = 100
+        bar_x = art_width + pad + ew + pad
+        bar_y = height - 18
+        bar_w = width - bar_x - tw - 2 * pad
+        if bar_x <= x <= bar_x + bar_w and bar_y - 16 <= y <= height:
+            pct_touch = (x - bar_x) / bar_w if bar_w else 0
+            position = int(duration * pct_touch)
+            return {"action": "seek", "position": position}
+        return None

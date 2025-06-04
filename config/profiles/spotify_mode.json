@@ -33,11 +33,6 @@
       "action": "next_track",
       "label": "Next",
       "icon": "./assets/skip.png"
-    },
-    "7": {
-      "action": "toggle_shuffle",
-      "label": "Shuffle",
-      "icon": "./assets/shuffle.png"
     }
   },
 

@@ -31,6 +31,8 @@ class SpotifyController:
 
         self._last_track_id = None
         self._last_playing_state = None
+        self._last_shuffle_state = None
+        self._last_repeat_state = None
 
         self._cached_art_url = None
         self._cached_art_image = None
@@ -43,8 +45,12 @@ class SpotifyController:
         self._poll_thread = threading.Thread(target=self._poll_loop, daemon=True)
         self._poll_thread.start()
 
-    def update(self, now):
-        if now - self._last_poll_time < self._poll_interval:
+    def update(self, now, force=False):
+        """
+        Poll Spotify state and update the Now Playing view.
+        If force is True, ignore the regular poll interval and update immediately.
+        """
+        if not force and now - self._last_poll_time < self._poll_interval:
             return
         self._last_poll_time = now
 
@@ -55,10 +61,16 @@ class SpotifyController:
 
             track_id = info["track_id"]
             is_playing = info["is_playing"]
+            shuffle_state = info.get("shuffle_state", False)
+            repeat_state = info.get("repeat_state", "off")
 
-            if track_id != self._last_track_id or is_playing != self._last_playing_state:
+            if (track_id != self._last_track_id or is_playing != self._last_playing_state
+                    or shuffle_state != self._last_shuffle_state
+                    or repeat_state != self._last_repeat_state):
                 self._last_track_id = track_id
                 self._last_playing_state = is_playing
+                self._last_shuffle_state = shuffle_state
+                self._last_repeat_state = repeat_state
 
                 art = self._get_album_art(info["art_url"])
 
@@ -99,7 +111,9 @@ class SpotifyController:
             "art_url": item["album"]["images"][0]["url"] if item["album"]["images"] else None,
             "progress": playback["progress_ms"],
             "duration": item["duration_ms"],
-            "is_playing": playback["is_playing"]
+            "is_playing": playback["is_playing"],
+            "shuffle_state": playback.get("shuffle_state", False),
+            "repeat_state": playback.get("repeat_state", "off"),
         }
 
     def _get_album_art(self, url):
@@ -217,6 +231,22 @@ class SpotifyController:
             self.sp.shuffle(not shuffle_state)
         except Exception as e:
             print(f"[ERROR] Failed to toggle shuffle: {e}")
+
+    def toggle_repeat(self):
+        """Cycle repeat state: off -> context (all) -> track (one) -> off."""
+        try:
+            playback = self.sp.current_playback()
+            state = playback.get("repeat_state", "off") if playback else "off"
+            if state == "off":
+                new_state = "context"
+            elif state == "context":
+                new_state = "track"
+            else:
+                new_state = "off"
+            self.sp.repeat(new_state)
+        except Exception as e:
+            print(f"[ERROR] Failed to cycle repeat state: {e}")
+
 
     def volume_up(self):
         """Increase volume by 10% and show a toast."""

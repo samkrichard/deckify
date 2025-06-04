@@ -64,7 +64,7 @@ class StreamDeckDeviceManager:
                     action()
                 except Exception as e:
                     print(f"[ERROR] Button {key} action failed: {e}")
-            self.controller.update(time.time())
+            self.controller.update(time.time(), force=True)
 
     def _dial_callback(self, deck, dial, event, value):
         try:
@@ -98,29 +98,18 @@ class StreamDeckDeviceManager:
             return
         width = deck.TOUCHSCREEN_PIXEL_WIDTH
         height = deck.TOUCHSCREEN_PIXEL_HEIGHT
-        now = time.time()
-        progress, duration, pct = task._compute_progress(now)
-        elapsed_str = task._ms_to_minsec(progress)
-        total_str = task._ms_to_minsec(duration)
-        _, small_font = task._get_fonts()
-        eb = small_font.getbbox(elapsed_str)
-        tb = small_font.getbbox(total_str)
-        ew = eb[2] - eb[0]
-        tw = tb[2] - tb[0]
-        pad = 10
-        art_width = 100
-        bar_x = art_width + pad + ew + pad
-        bar_y = height - 18
-        bar_h = 6
-        bar_w = width - bar_x - tw - 2 * pad
-        # Check if tap is within progress bar region
-        if not (bar_x <= x <= bar_x + bar_w and bar_y - 16 <= y <= deck.TOUCHSCREEN_PIXEL_HEIGHT):
+        action = task.handle_touch(x, y, width, height, time.time())
+        if not action:
             return
-        pct_touch = (x - bar_x) / bar_w
-        position = int(duration * pct_touch)
+        act = action.get("action")
         try:
-            self.controller.seek(position)
+            if act == "toggle_shuffle":
+                self.controller.toggle_shuffle()
+            elif act == "toggle_repeat":
+                self.controller.toggle_repeat()
+            elif act == "seek":
+                self.controller.seek(action.get("position", 0))
         except Exception as e:
-            print(f"[ERROR] Scrub action failed: {e}")
-        self.controller.update(time.time())
+            print(f"[ERROR] Touch action '{act}' failed: {e}")
+        self.controller.update(time.time(), force=True)
 
