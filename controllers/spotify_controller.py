@@ -7,6 +7,7 @@ from PIL import Image
 from io import BytesIO
 from render.tasks.render_tasks.now_playing_task import NowPlayingTask
 from render.tasks.render_tasks.volume_toast_task import VolumeToastTask
+from render.tasks.render_tasks.track_toast_task import TrackToastTask
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -28,6 +29,10 @@ class SpotifyController:
         self.renderer = getattr(screen_manager, 'renderer', None)
 
         self.sp = Spotify(auth_manager=SpotifyOAuth(scope=" ".join(SCOPES)))
+        # Playlist selection state
+        self._playlist_uri = None
+        self._playlist_tracks = []
+        self._playlist_track_index = 0
 
         self._last_track_id = None
         self._last_playing_state = None
@@ -293,4 +298,72 @@ class SpotifyController:
             self.sp.seek_track(position_ms)
         except Exception as e:
             print(f"[ERROR] Failed to seek to position {position_ms}: {e}")
+
+    def _ensure_playlist_tracks(self):
+        """Load and cache tracks from the current playlist context."""
+        try:
+            playback = self.sp.current_playback()
+            context = playback.get('context') if playback else None
+            playlist_uri = context.get('uri') if context else None
+            if not playlist_uri or (playlist_uri == self._playlist_uri and self._playlist_tracks):
+                return
+            playlist_id = playlist_uri.split(":")[-1] if ":" in playlist_uri else playlist_uri
+            tracks = []
+            offset = 0
+            limit = 100
+            while True:
+                resp = self.sp.playlist_items(playlist_id, offset=offset,
+                                               fields='items.track.name,items.track.artists.name,items.track.uri',
+                                               limit=limit)
+                items = resp.get('items', [])
+                for item in items:
+                    track = item.get('track')
+                    if not track:
+                        continue
+                    name = track.get('name')
+                    artists = ', '.join([a.get('name') for a in track.get('artists', [])])
+                    uri = track.get('uri')
+                    tracks.append({'name': name, 'artists': artists, 'uri': uri})
+                if len(items) < limit:
+                    break
+                offset += limit
+            self._playlist_uri = playlist_uri
+            self._playlist_tracks = tracks
+            self._playlist_track_index = 0
+        except Exception as e:
+            print(f"[ERROR] Failed to fetch playlist tracks: {e}")
+
+    def select_next_track(self):
+        """Scroll to the next track in the playlist and show toast."""
+        self._ensure_playlist_tracks()
+        if not self._playlist_tracks:
+            return
+        self._playlist_track_index = (self._playlist_track_index + 1) % len(self._playlist_tracks)
+        track = self._playlist_tracks[self._playlist_track_index]
+        self.screen.show_toast(TrackToastTask(self.screen, track['name'], track['artists']))
+
+    def select_prev_track(self):
+        """Scroll to the previous track in the playlist and show toast."""
+        self._ensure_playlist_tracks()
+        if not self._playlist_tracks:
+            return
+        self._playlist_track_index = (self._playlist_track_index - 1) % len(self._playlist_tracks)
+        track = self._playlist_tracks[self._playlist_track_index]
+        self.screen.show_toast(TrackToastTask(self.screen, track['name'], track['artists']))
+
+    def confirm_selected_track(self):
+        """Start playback of the currently selected track in the playlist."""
+        self._ensure_playlist_tracks()
+        if not self._playlist_tracks:
+            return
+        track = self._playlist_tracks[self._playlist_track_index]
+        try:
+            playback = self.sp.current_playback()
+            context = playback.get('context') if playback else None
+            if context and context.get('uri') and 'playlist' in context.get('uri'):
+                self.sp.start_playback(context_uri=context['uri'], offset={'uri': track['uri']})
+            else:
+                self.sp.start_playback(uris=[track['uri']])
+        except Exception as e:
+            print(f"[ERROR] Failed to set selected track '{track['name']}': {e}")
 

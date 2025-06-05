@@ -12,8 +12,9 @@
       "icon": "./assets/discover_weekly.jpeg"
     },
     "2": {
-      "action": "start_recommendations",
-      "label": "Radio"
+      "action": "play_playlist",
+      "args": ["spotify:playlist:37i9dQZEVXbNG2KDcFcKOF"],
+      "label": "Global Top 50"
     },
     "3": {
       "action": "like_current_track",
@@ -44,7 +45,16 @@
       "action": "volume_down" 
     },
     "dial_0_push": {
-       "action": "toggle_mute" 
+       "action": "toggle_mute"
+    },
+    "dial_1_clockwise": {
+      "action": "select_next_track"
+    },
+    "dial_1_counterclockwise": {
+      "action": "select_prev_track"
+    },
+    "dial_1_push": {
+      "action": "confirm_selected_track"
     }
   }
 }
