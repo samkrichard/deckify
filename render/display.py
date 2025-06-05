@@ -68,22 +68,33 @@ class Renderer:
 
     def render_volume_toast_image(self, volume: int, width=800, height=100):
         margin = 20
-        bar_margin = 6
-
-        bar_width = int((volume / 100) * (width - 2 * (margin + bar_margin)))
+        stroke_width = 2
+        gap = 2
+        outer_height = 40
 
         img = Image.new('RGB', (width, height), 'black')
         draw = ImageDraw.Draw(img)
 
         # Outer outline rectangle
-        outer_rect = [margin, height//2 - 20, width - margin, height//2 + 20]
-        draw.rectangle(outer_rect, outline='white', width=2)
+        center_y = height // 2
+        outer_rect = [
+            margin,
+            center_y - outer_height // 2,
+            width - margin,
+            center_y + outer_height // 2,
+        ]
+        draw.rounded_rectangle(outer_rect, radius=outer_height // 2, outline='white', width=stroke_width)
 
-        # Inner fill bar
-        fill_left = margin + bar_margin
-        fill_right = fill_left + bar_width
-        fill_rect = [fill_left, height//2 - 16, fill_right, height//2 + 16]
-        draw.rectangle(fill_rect, fill='white')
+        # Inner fill bar with slight gap from outline
+        inner_top = outer_rect[1] + stroke_width + gap
+        inner_bottom = outer_rect[3] - stroke_width - gap
+        max_fill_width = (outer_rect[2] - outer_rect[0]) - 2 * (stroke_width + gap)
+        fill_width = int((volume / 100) * max_fill_width)
+        inner_left = outer_rect[0] + stroke_width + gap
+        inner_right = inner_left + fill_width
+        inner_rect = [inner_left, inner_top, inner_right, inner_bottom]
+        inner_radius = (inner_bottom - inner_top) // 2
+        draw.rounded_rectangle(inner_rect, radius=inner_radius, fill='white')
 
         # Volume text
         try:
@@ -196,12 +207,12 @@ class Renderer:
 
         # Draw progress bar
         bar_bg_box = [bar_x, bar_y, bar_x + bar_width, bar_y + bar_height]
-        draw.rectangle(bar_bg_box, fill="gray")
+        draw.rounded_rectangle(bar_bg_box, radius=2, fill="gray")
 
         fill_width = int(bar_width * pct)
         if fill_width > 0:
             bar_fg_box = [bar_x, bar_y, bar_x + fill_width, bar_y + bar_height]
-            draw.rectangle(bar_fg_box, fill="white")
+            draw.rounded_rectangle(bar_fg_box, radius=2, fill="white")
 
 
 
