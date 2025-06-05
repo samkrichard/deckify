@@ -8,8 +8,13 @@ from render.tasks.render_tasks.now_playing_task import NowPlayingTask
 class StreamDeckDeviceManager:
     def __init__(self):
         self.deck = None
+        # short press action map: key -> callable()
         self.button_action_map = {}
+        # long press action map: key -> (callable, args, timeout)
+        self.button_long_action_map = {}
         self.dial_action_map = {}
+        # track press timestamps for long-press detection
+        self._press_times = {}
         self.controller = None
 
     def initialize(self, config_path, controller, renderer):
@@ -28,7 +33,7 @@ class StreamDeckDeviceManager:
             renderer.deck = self.deck
 
         self.controller = controller
-        self.button_action_map = build_button_action_map(
+        self.button_action_map, self.button_long_action_map = build_button_action_map(
             config_path, controller, renderer
         )
         self.dial_action_map = build_dial_action_map(
@@ -66,7 +71,57 @@ class StreamDeckDeviceManager:
             print(f"[WARN] Failed to update touchscreen: {e}")
 
     def _button_callback(self, deck, key, state):
-        if state:  # Only on press
+        """
+        Handle short and long press events. State True=press, False=release.
+        """
+        if state and getattr(self.controller, '_playlist_add_mode', False) \
+               and hasattr(self.controller, '_playlist_hotkeys') \
+               and key in self.controller._playlist_hotkeys:
+            try:
+                self.controller.playlist_hotkey(key)
+            except Exception as e:
+                print(f"[ERROR] Playlist hotkey {key} action failed: {e}")
+            self._force_update()
+            return
+        # Long-press mapping takes priority
+        long_entry = self.button_long_action_map.get(key)
+        if long_entry:
+            now = time.time()
+            method_long, args_long, timeout = long_entry
+            if state:
+                # record when button was pressed
+                self._press_times[key] = now
+            else:
+                press_time = self._press_times.pop(key, None)
+                if press_time is None:
+                    return
+                duration = now - press_time
+                if duration >= timeout:
+                    try:
+                        method_long(*args_long)
+                    except Exception as e:
+                        print(f"[ERROR] Button {key} long action failed: {e}")
+                else:
+                    short_action = self.button_action_map.get(key)
+                    if short_action:
+                        try:
+                            short_action()
+                        except Exception as e:
+                            print(f"[ERROR] Button {key} short action failed: {e}")
+                self._force_update()
+            return
+
+        # Short-press dynamic playlist hotkey overrides static mapping
+        if state and hasattr(self.controller, '_playlist_hotkeys') and key in self.controller._playlist_hotkeys:
+            try:
+                self.controller.playlist_hotkey(key)
+            except Exception as e:
+                print(f"[ERROR] Playlist hotkey {key} action failed: {e}")
+            self._force_update()
+            return
+
+        # No long action configured: fallback to short-press only
+        if state:
             action = self.button_action_map.get(key)
             if action:
                 try:

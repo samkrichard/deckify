@@ -1,5 +1,6 @@
 import time
 import threading
+import json
 import requests
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
@@ -18,21 +19,33 @@ SCOPES = [
     "user-read-currently-playing",
     "user-library-modify",
     "playlist-read-private",
-    "user-library-read"
+    "playlist-modify-private",
+    "user-library-read",
 ]
 
 class SpotifyController:
-    def __init__(self, screen_manager):
+    def __init__(self, screen_manager, config_path):
         self.screen = screen_manager
+        self.config_path = config_path
 
         # Try to access the renderer if available from the screen manager
         self.renderer = getattr(screen_manager, 'renderer', None)
 
         self.sp = Spotify(auth_manager=SpotifyOAuth(scope=" ".join(SCOPES)))
-        # Playlist selection state
+        # Dynamic playlist hotkey mapping: key -> playlist URI
+        self._playlist_hotkeys = {}
+        # Playlist browsing state
         self._playlist_uri = None
         self._playlist_tracks = []
         self._playlist_track_index = 0
+        # Playlist-add (track to playlist) mode state
+        self._playlist_add_mode = False
+        self._playlist_add_start_time = 0.0
+        self._playlist_add_timeout = 5.0
+        self._like_button_key = None
+        self._like_button_add_icon = None
+        self._like_button_remove_icon = None
+        self._like_button_mode_icon = None
 
         self._last_track_id = None
         self._last_playing_state = None
@@ -55,6 +68,12 @@ class SpotifyController:
         Poll Spotify state and update the Now Playing view.
         If force is True, ignore the regular poll interval and update immediately.
         """
+        # Exit playlist-add mode on timeout if user did not select a hotkey
+        if self._playlist_add_mode and (now - self._playlist_add_start_time) > self._playlist_add_timeout:
+            try:
+                self._exit_playlist_add_mode()
+            except Exception:
+                pass
         if not force and now - self._last_poll_time < self._poll_interval:
             return
         self._last_poll_time = now
@@ -100,10 +119,11 @@ class SpotifyController:
                 except Exception as e:
                     print(f"[WARN] Failed to update play/pause button icon: {e}")
                 try:
-                    contains = self.sp.current_user_saved_tracks_contains([track_id])
-                    is_liked = bool(contains[0]) if contains else False
-                    like_icon = "./assets/remove.png" if is_liked else "./assets/add.png"
-                    renderer.update_button(7, image=like_icon)
+                    if not self._playlist_add_mode:
+                        contains = self.sp.current_user_saved_tracks_contains([track_id])
+                        is_liked = bool(contains[0]) if contains else False
+                        like_icon = "./assets/remove.png" if is_liked else "./assets/add.png"
+                        renderer.update_button(7, image=like_icon)
                 except Exception as e:
                     print(f"[WARN] Failed to update like button icon: {e}")
         except Exception as e:
@@ -394,4 +414,108 @@ class SpotifyController:
                 self.sp.start_playback(uris=[track['uri']])
         except Exception as e:
             print(f"[ERROR] Failed to set selected track '{track['name']}': {e}")
+
+    # --- Dynamic playlist hotkey management ---
+    def register_playlist_hotkey(self, key, playlist_uri):
+        """Register a playlist URI to a hotkey button."""
+        self._playlist_hotkeys[key] = playlist_uri
+
+    def link_playlist_hotkey(self, key):
+        """Link the current playback context (playlist) to the given hotkey."""
+        info = self.now_playing_info()
+        if not info:
+            return
+        playback = self.sp.current_playback()
+        context = playback.get('context') if playback else None
+        playlist_uri = context.get('uri') if context else None
+        if not playlist_uri or 'playlist' not in playlist_uri:
+            return
+        # store mapping and update button icon to playlist cover
+        self._playlist_hotkeys[key] = playlist_uri
+        icon_url = self.get_playlist_icon_url(playlist_uri)
+        if self.renderer and icon_url:
+            try:
+                self.renderer.update_button(key, image=icon_url)
+            except Exception as e:
+                print(f"[WARN] Failed to update playlist hotkey icon for button {key}: {e}")
+
+        # persist updated playlist URI in config file for next sessions
+        try:
+            with open(self.config_path, 'r') as f:
+                config = json.load(f)
+            key_str = str(key)
+            buttons = config.get("buttons", {})
+            if key_str in buttons:
+                buttons[key_str]["args"] = [playlist_uri]
+                with open(self.config_path, 'w') as f:
+                    json.dump(config, f, indent=2)
+            else:
+                print(f"[WARN] Cannot persist playlist hotkey: button {key} not found in config")
+        except Exception as e:
+            print(f"[ERROR] Failed to update playlist hotkey in config: {e}")
+
+    def playlist_hotkey(self, key):
+        """Handle press of a playlist hotkey: play or add track depending on mode."""
+        if self._playlist_add_mode:
+            info = self.now_playing_info()
+            if not info:
+                return
+            track_uri = info['track_id']
+            playlist_uri = self._playlist_hotkeys.get(key)
+            if not playlist_uri:
+                return
+            playlist_id = playlist_uri.split(':')[-1] if ':' in playlist_uri else playlist_uri
+            try:
+                self.sp.playlist_add_items(playlist_id, [track_uri])
+                # confirmation toast for added track
+                self.screen.show_toast(TrackToastTask(self.screen, info['track'], info['artist']))
+            except Exception as e:
+                print(f"[ERROR] Failed to add track to playlist: {e}")
+            # exit add mode after adding
+            self._exit_playlist_add_mode()
+        else:
+            playlist_uri = self._playlist_hotkeys.get(key)
+            if not playlist_uri:
+                return
+            try:
+                self.sp.start_playback(context_uri=playlist_uri)
+            except Exception as e:
+                print(f"[ERROR] Failed to play playlist {playlist_uri}: {e}")
+
+    def enter_playlist_add_mode(self, button_key, add_icon, remove_icon, mode_icon, timeout=None):
+        """Enable playlist-add mode on like button long-press."""
+        if self._playlist_add_mode:
+            return
+        self._playlist_add_mode = True
+        self._playlist_add_start_time = time.time()
+        if timeout is not None:
+            self._playlist_add_timeout = timeout
+        self._like_button_key = button_key
+        self._like_button_add_icon = add_icon
+        self._like_button_remove_icon = remove_icon
+        self._like_button_mode_icon = mode_icon
+        if self.renderer:
+            try:
+                self.renderer.update_button(button_key, image=mode_icon)
+            except Exception as e:
+                print(f"[WARN] Failed to render playlist-add mode icon for button {button_key}: {e}")
+
+    def _exit_playlist_add_mode(self):
+        """Disable playlist-add mode and restore like button icon."""
+        if not self._playlist_add_mode:
+            return
+        self._playlist_add_mode = False
+        key = self._like_button_key
+        if key is not None and self.renderer:
+            try:
+                liked = self.is_current_track_liked()
+                icon = self._like_button_remove_icon if liked else self._like_button_add_icon
+                self.renderer.update_button(key, image=icon)
+            except Exception as e:
+                print(f"[WARN] Failed to restore like button icon for button {key}: {e}")
+        # reset mode state
+        self._like_button_key = None
+        self._like_button_add_icon = None
+        self._like_button_remove_icon = None
+        self._like_button_mode_icon = None
 

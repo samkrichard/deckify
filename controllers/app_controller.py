@@ -17,7 +17,7 @@ class AppController:
         self.screen = ScreenManager(self.device_manager.deck)
 
         # Init controller(s)
-        self.spotify = SpotifyController(self.screen)
+        self.spotify = SpotifyController(self.screen, config_path)
 
         # Register controller actions to buttons/dials
         self.device_manager.initialize(self.config_path, self.spotify, self.screen.renderer)

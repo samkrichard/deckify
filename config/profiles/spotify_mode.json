@@ -2,19 +2,56 @@
   "profile_name": "spotify_mode",
   "buttons": {
     "0": {
-      "action": "play_liked_songs",
-      "label": "Liked Songs"
+      "action": "play_playlist",
+      "args": [
+        "spotify:playlist:4kAbOc6YEYzauUyfYzVgXi"
+      ],
+      "label": "Paylist 1",
+      "icon": "fetch",
+      "long_action": "link_playlist_hotkey",
+      "long_args": [
+        0
+      ],
+      "long_timeout": 1.0
     },
     "1": {
       "action": "play_playlist",
-      "args": ["spotify:playlist:37i9dQZEVXcOVTPpmeJTxX"],
-      "label": "Discover Weekly",
-      "icon": "./assets/discover_weekly.jpeg"
+      "args": [
+        "spotify:playlist:64wNHpKDJNGanfPmCWQsi4"
+      ],
+      "label": "Playlist 2",
+      "icon": "fetch",
+      "long_action": "link_playlist_hotkey",
+      "long_args": [
+        1
+      ],
+      "long_timeout": 1.0
     },
     "2": {
       "action": "play_playlist",
-      "args": ["spotify:playlist:37i9dQZEVXbNG2KDcFcKOF"],
-      "label": "Global Top 50"
+      "args": [
+        "spotify:playlist:1r3wNs7LtqhrWGKMC6ZqjJ"
+      ],
+      "label": "Paylist 3",
+      "icon": "fetch",
+      "long_action": "link_playlist_hotkey",
+      "long_args": [
+        2
+      ],
+      "long_timeout": 1.0
+    },
+    "3": {
+      "action": "play_playlist",
+      "args": [
+        "spotify:playlist:4COQTFkQRSBIZxca4q0MFl"
+      ],
+      "label": "Playlist 4",
+      "icon": "fetch",
+      "long_action": "link_playlist_hotkey",
+      "long_args": [
+        3
+      ],
+      "long_timeout": 1.0
     },
     "4": {
       "action": "previous_track",
@@ -35,19 +72,29 @@
       "action": "like_current_track",
       "label": "Like Track",
       "icon_add": "./assets/add.png",
-      "icon_remove": "./assets/remove.png"
+      "icon_remove": "./assets/remove.png",
+      "icon_mode": "./assets/playlist_add.png",
+      "long_action": "enter_playlist_add_mode",
+      "long_args": [
+        7,
+        "./assets/add.png",
+        "./assets/remove.png",
+        "./assets/playlist_add.png",
+        5.0
+      ],
+      "long_timeout": 1.0,
+      "playlist_add_timeout": 5.0
     }
   },
-
   "dials": {
-    "dial_0_clockwise": { 
-      "action": "volume_up" 
+    "dial_0_clockwise": {
+      "action": "volume_up"
     },
-    "dial_0_counterclockwise": { 
-      "action": "volume_down" 
+    "dial_0_counterclockwise": {
+      "action": "volume_down"
     },
     "dial_0_push": {
-       "action": "toggle_mute"
+      "action": "toggle_mute"
     },
     "dial_1_clockwise": {
       "action": "select_next_track"
