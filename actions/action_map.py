@@ -19,6 +19,23 @@ def build_button_action_map(config_path, controller, renderer=None):
             print(f"[WARN] No method '{action_name}' found in controller for button {key}")
             continue
 
+        add_icon = entry.get("icon_add")
+        remove_icon = entry.get("icon_remove")
+        if add_icon and remove_icon:
+            try:
+                liked = controller.is_current_track_liked()
+            except Exception as e:
+                print(f"[WARN] Failed to check liked status for button {key}: {e}")
+                liked = False
+            initial_icon = remove_icon if liked else add_icon
+            if renderer:
+                try:
+                    renderer.update_button(key, text=label, image=initial_icon)
+                except Exception as e:
+                    print(f"[WARN] Failed to render button {key}: {e}")
+            button_map[key] = (lambda m=method, k=key, ai=add_icon, ri=remove_icon: m(k, ai, ri))
+            continue
+
         # Fetch icon if needed
         if icon == "fetch" and action_name == "play_playlist" and args:
             try:

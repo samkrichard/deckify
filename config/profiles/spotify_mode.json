@@ -16,10 +16,6 @@
       "args": ["spotify:playlist:37i9dQZEVXbNG2KDcFcKOF"],
       "label": "Global Top 50"
     },
-    "3": {
-      "action": "like_current_track",
-      "label": "Like Track"
-    },
     "4": {
       "action": "previous_track",
       "label": "Previous",
@@ -34,6 +30,12 @@
       "action": "next_track",
       "label": "Next",
       "icon": "./assets/skip.png"
+    },
+    "7": {
+      "action": "like_current_track",
+      "label": "Like Track",
+      "icon_add": "./assets/add.png",
+      "icon_remove": "./assets/remove.png"
     }
   },
 

@@ -99,6 +99,13 @@ class SpotifyController:
                     renderer.update_button(5, image=icon)
                 except Exception as e:
                     print(f"[WARN] Failed to update play/pause button icon: {e}")
+                try:
+                    contains = self.sp.current_user_saved_tracks_contains([track_id])
+                    is_liked = bool(contains[0]) if contains else False
+                    like_icon = "./assets/remove.png" if is_liked else "./assets/add.png"
+                    renderer.update_button(7, image=like_icon)
+                except Exception as e:
+                    print(f"[WARN] Failed to update like button icon: {e}")
         except Exception as e:
             print(f"[ERROR] Spotify update failed: {e}")
 
@@ -193,15 +200,36 @@ class SpotifyController:
         except Exception as e:
             print(f"[ERROR] Failed to start recommendations: {e}")
 
-    def like_current_track(self):
-        """Save the currently playing track to the user's 'Liked Songs'."""
+    def is_current_track_liked(self):
+        """Return True if the currently playing track is in the user's saved tracks."""
+        try:
+            info = self.now_playing_info()
+            if not info:
+                return False
+            contains = self.sp.current_user_saved_tracks_contains([info["track_id"]])
+            return bool(contains[0]) if contains else False
+        except Exception as e:
+            print(f"[WARN] Failed to check liked status: {e}")
+            return False
+
+    def like_current_track(self, button_key, add_icon, remove_icon):
+        """Toggle the current track's liked state and update the button icon."""
         try:
             info = self.now_playing_info()
             if not info:
                 return
-            self.sp.current_user_saved_tracks_add([info["track_id"]])
+            track_id = info["track_id"]
+            contains = self.sp.current_user_saved_tracks_contains([track_id])
+            is_liked = bool(contains[0]) if contains else False
+            if is_liked:
+                self.sp.current_user_saved_tracks_delete([track_id])
+                new_icon = add_icon
+            else:
+                self.sp.current_user_saved_tracks_add([track_id])
+                new_icon = remove_icon
+            self.screen.renderer.update_button(button_key, image=new_icon)
         except Exception as e:
-            print(f"[ERROR] Failed to like current track: {e}")
+            print(f"[ERROR] Failed to toggle like for current track: {e}")
 
     def previous_track(self):
         """Skip to the previous track."""
