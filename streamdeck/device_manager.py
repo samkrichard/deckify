@@ -56,6 +56,15 @@ class StreamDeckDeviceManager:
             except Exception as e:
                 print(f"[WARN] Failed to cleanly close Stream Deck: {e}")
 
+    def _force_update(self):
+        """Force an immediate update of controller state and touchscreen rendering."""
+        now = time.time()
+        self.controller.update(now, force=True)
+        try:
+            self.controller.screen.update(now)
+        except Exception as e:
+            print(f"[WARN] Failed to update touchscreen: {e}")
+
     def _button_callback(self, deck, key, state):
         if state:  # Only on press
             action = self.button_action_map.get(key)
@@ -64,7 +73,7 @@ class StreamDeckDeviceManager:
                     action()
                 except Exception as e:
                     print(f"[ERROR] Button {key} action failed: {e}")
-            self.controller.update(time.time(), force=True)
+            self._force_update()
 
     def _dial_callback(self, deck, dial, event, value):
         try:
@@ -79,6 +88,7 @@ class StreamDeckDeviceManager:
             action = self.dial_action_map.get(key)
             if action:
                 action()
+                self._force_update()
         except Exception as e:
             print(f"[ERROR] Dial event ({key}) failed: {e}")
 
@@ -111,5 +121,5 @@ class StreamDeckDeviceManager:
                 self.controller.seek(action.get("position", 0))
         except Exception as e:
             print(f"[ERROR] Touch action '{act}' failed: {e}")
-        self.controller.update(time.time(), force=True)
+        self._force_update()
 

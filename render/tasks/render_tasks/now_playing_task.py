@@ -8,6 +8,7 @@ class NowPlayingTask:
     ICON_MARGIN_RIGHT = 16
     ICON_MARGIN_TOP = 16
     ICON_PADDING_TEXT = 16
+    SCROLL_RATE = 30
     def __init__(self, info: dict, album_art):
         self.info = info
         self.album_art = album_art
@@ -84,7 +85,7 @@ class NowPlayingTask:
         if title_w > area:
             loop_w = title_w + 60
             delta = now - self.last_scroll_time
-            self.scroll_offset += int(delta * 40)
+            self.scroll_offset += int(delta * NowPlayingTask.SCROLL_RATE)
             scroll_px = self.scroll_offset % loop_w
             x1, x2 = -scroll_px, -scroll_px + loop_w
             band_draw.text((x1, 0), title, font=font, fill="white")
@@ -111,7 +112,7 @@ class NowPlayingTask:
         if artist_w > area:
             loop_w = artist_w + 60
             delta = now - self.last_artist_scroll_time
-            self.artist_scroll_offset += int(delta * 40)
+            self.artist_scroll_offset += int(delta * NowPlayingTask.SCROLL_RATE)
             scroll_px = self.artist_scroll_offset % loop_w
             x1, x2 = -scroll_px, -scroll_px + loop_w
             band_draw.text((x1, 0), artist, font=font, fill="gray")
