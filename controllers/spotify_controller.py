@@ -9,6 +9,7 @@ from io import BytesIO
 from render.tasks.render_tasks.now_playing_task import NowPlayingTask
 from render.tasks.render_tasks.volume_toast_task import VolumeToastTask
 from render.tasks.render_tasks.track_toast_task import TrackToastTask
+from render.tasks.render_tasks.playlist_toast_task import PlaylistToastTask, PlaylistAddToastTask
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -467,8 +468,13 @@ class SpotifyController:
             playlist_id = playlist_uri.split(':')[-1] if ':' in playlist_uri else playlist_uri
             try:
                 self.sp.playlist_add_items(playlist_id, [track_uri])
-                # confirmation toast for added track
-                self.screen.show_toast(TrackToastTask(self.screen, info['track'], info['artist']))
+                playlist_name = playlist_id
+                try:
+                    data = self.sp.playlist(playlist_id)
+                    playlist_name = data.get('name', playlist_name)
+                except Exception as e:
+                    print(f"[WARN] Failed to fetch playlist name for toast: {e}")
+                self.screen.show_toast(PlaylistAddToastTask(self.screen, info['track'], playlist_name))
             except Exception as e:
                 print(f"[ERROR] Failed to add track to playlist: {e}")
             # exit add mode after adding
@@ -477,8 +483,16 @@ class SpotifyController:
             playlist_uri = self._playlist_hotkeys.get(key)
             if not playlist_uri:
                 return
+            playlist_id = playlist_uri.split(':')[-1] if ':' in playlist_uri else playlist_uri
             try:
                 self.sp.start_playback(context_uri=playlist_uri)
+                playlist_name = playlist_id
+                try:
+                    data = self.sp.playlist(playlist_id)
+                    playlist_name = data.get('name', playlist_name)
+                except Exception as e:
+                    print(f"[WARN] Failed to fetch playlist name for toast: {e}")
+                self.screen.show_toast(PlaylistToastTask(self.screen, playlist_name))
             except Exception as e:
                 print(f"[ERROR] Failed to play playlist {playlist_uri}: {e}")
 

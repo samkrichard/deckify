@@ -23,6 +23,16 @@ class TrackToastTask:
         text = f"{self.track_name} - {self.artist_name}"
         bbox = font.getbbox(text)
         text_width = bbox[2] - bbox[0]
+        max_width = width
+        if text_width > max_width:
+            ellipsis = "..."
+            while text and text_width > max_width:
+                text = text[:-1]
+                bbox = font.getbbox(text + ellipsis)
+                text_width = bbox[2] - bbox[0]
+            text = text + ellipsis
+        bbox = font.getbbox(text)
+        text_width = bbox[2] - bbox[0]
         text_height = bbox[3] - bbox[1]
         x = max((width - text_width) // 2, 0)
         y = max((height - text_height) // 2, 0)
