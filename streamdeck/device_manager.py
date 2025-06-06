@@ -64,11 +64,8 @@ class StreamDeckDeviceManager:
     def _force_update(self):
         """Force an immediate update of controller state and touchscreen rendering."""
         now = time.time()
+        # Refresh controller state; defer actual screen redraw to main render loop
         self.controller.update(now, force=True)
-        try:
-            self.controller.screen.update(now)
-        except Exception as e:
-            print(f"[WARN] Failed to update touchscreen: {e}")
 
     def _button_callback(self, deck, key, state):
         """

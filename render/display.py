@@ -1,11 +1,14 @@
 import requests
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 from io import BytesIO
+import threading
 
 class Renderer:
     def __init__(self, deck, button_size=(120, 120)):
         self.deck = deck
         self.button_size = button_size
+        self._deck_lock = threading.Lock()
+        self._last_key_images = {}
         try:
             self.font = ImageFont.truetype("DejaVuSans-Bold.ttf", 18)
         except Exception:
@@ -48,7 +51,9 @@ class Renderer:
             buf = BytesIO()
             image.save(buf, format="JPEG")
             img_bytes = buf.getvalue()
-            self.deck.set_touchscreen_image(img_bytes, 0, 0, 800, 100)
+            # serialize all deck updates to avoid races/flicker
+            with self._deck_lock:
+                self.deck.set_touchscreen_image(img_bytes, 0, 0, 800, 100)
         except Exception as e:
             print(f"[WARN] Failed to push image to touchscreen: {e}")
 
@@ -62,7 +67,12 @@ class Renderer:
             img.save(buffer, format="JPEG")
             jpeg_bytes = buffer.getvalue()
 
-            self.deck.set_key_image(key, jpeg_bytes)
+            # Avoid re-sending identical key images (reduces flicker on unchanged buttons)
+            prev = self._last_key_images.get(key)
+            if prev != jpeg_bytes:
+                self._last_key_images[key] = jpeg_bytes
+                with self._deck_lock:
+                    self.deck.set_key_image(key, jpeg_bytes)
         except Exception as e:
             print(f"[WARN] Failed to render button {key}: {e}")
 
