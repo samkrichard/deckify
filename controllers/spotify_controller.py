@@ -205,8 +205,19 @@ class SpotifyController:
         """Start playback of a given playlist URI."""
         try:
             self.sp.start_playback(context_uri=playlist_uri)
+            playlist_id = playlist_uri.split(':')[-1] if ':' in playlist_uri else playlist_uri
+            playlist_name = playlist_id
+            try:
+                data = self.sp.playlist(playlist_id)
+                playlist_name = data.get('name', playlist_name)
+            except Exception as e:
+                print(f"[WARN] Failed to fetch playlist name for toast: {e}")
+            self.screen.show_toast(
+                PlaylistToastTask(self.screen, playlist_name, prefix="Now Playing playlist")
+            )
         except Exception as e:
             print(f"[ERROR] Failed to play playlist {playlist_uri}: {e}")
+
 
     def start_recommendations(self):
         """Start a recommendation-based play queue based on the current track."""
@@ -492,7 +503,13 @@ class SpotifyController:
                     playlist_name = data.get('name', playlist_name)
                 except Exception as e:
                     print(f"[WARN] Failed to fetch playlist name for toast: {e}")
-                self.screen.show_toast(PlaylistToastTask(self.screen, playlist_name))
+                self.screen.show_toast(
+                    PlaylistToastTask(
+                        self.screen,
+                        playlist_name,
+                        prefix="Now Playing playlist"
+                    )
+                )
             except Exception as e:
                 print(f"[ERROR] Failed to play playlist {playlist_uri}: {e}")
 

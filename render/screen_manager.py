@@ -1,12 +1,14 @@
 import time
 import asyncio
 from render.display import Renderer  # Your existing PIL-based renderer
+from collections import deque
 
 class ScreenManager:
     def __init__(self, deck):
         self.renderer = Renderer(deck)
         self.current_task = None
         self.toast_task = None
+        self._toast_queue = deque()
         self.last_render_time = 0
 
     def set_view(self, task):
@@ -14,8 +16,13 @@ class ScreenManager:
         self.current_task = task
 
     def show_toast(self, task):
-        """Temporarily display a toast message (overrides current view)."""
-        self.toast_task = task
+        """Temporarily display one or more toast messages (overrides current view). If given an iterable of tasks, show them sequentially."""
+        if isinstance(task, (list, tuple, deque)):
+            self._toast_queue = deque(task)
+            self.toast_task = self._toast_queue.popleft()
+        else:
+            self._toast_queue.clear()
+            self.toast_task = task
 
     def update(self, now):
         """Synchronous update (legacy) — use update_async for non-blocking rendering."""
@@ -23,7 +30,10 @@ class ScreenManager:
 
         # Clean up expired toast
         if self.toast_task and self.toast_task.expired(now):
-            self.toast_task = None
+            if self._toast_queue:
+                self.toast_task = self._toast_queue.popleft()
+            else:
+                self.toast_task = None
 
         if self.toast_task:
             img = self.toast_task.render(now)
@@ -38,7 +48,10 @@ class ScreenManager:
         """Asynchronous update — schedule rendering and deck I/O off the main loop."""
         # Clean up expired toast
         if self.toast_task and self.toast_task.expired(now):
-            self.toast_task = None
+            if self._toast_queue:
+                self.toast_task = self._toast_queue.popleft()
+            else:
+                self.toast_task = None
 
         # Determine which task to render
         task = self.toast_task or self.current_task
