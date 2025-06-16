@@ -43,6 +43,9 @@ class SpotifyController:
         self._playlist_uri = None
         self._playlist_tracks = []
         self._playlist_track_index = 0
+        # User playlist browsing state (for dial-based playlist selection)
+        self._user_playlists = []
+        self._user_playlist_index = 0
         # Playlist-add (track to playlist) mode state
         self._playlist_add_mode = False
         self._playlist_add_start_time = 0.0
@@ -436,7 +439,6 @@ class SpotifyController:
             if info and info.get('track_id'):
                 tid = info['track_id']
                 for i, t in enumerate(tracks):
-                    # compare track URIs by ID suffix
                     if t.get('uri', '').split(':')[-1] == tid:
                         idx = i
                         break
@@ -495,6 +497,68 @@ class SpotifyController:
                 self.sp.start_playback(uris=[track['uri']])
         except Exception as e:
             print(f"[ERROR] Failed to set selected track '{track['name']}': {e}")
+
+    # --- User playlist browsing via dial ---
+    def _ensure_user_playlists(self):
+        """Load and cache all of the user's playlists."""
+        try:
+            playlists = []
+            offset = 0
+            limit = 50
+            while True:
+                resp = self.sp.current_user_playlists(limit=limit, offset=offset)
+                items = resp.get('items', [])
+                for p in items:
+                    playlists.append({
+                        'name': p.get('name'),
+                        'uri': p.get('uri'),
+                        'icon': (p.get('images') or [{}])[0].get('url')
+                    })
+                if len(items) < limit:
+                    break
+                offset += limit
+            self._user_playlists = playlists
+        except Exception as e:
+            print(f"[WARN] Failed to fetch user playlists: {e}")
+            self._user_playlists = []
+        finally:
+            # reset index if out of range
+            if not self._user_playlists:
+                self._user_playlist_index = 0
+            else:
+                self._user_playlist_index %= len(self._user_playlists)
+
+    def select_next_playlist(self):
+        """Cycle to the next playlist in the user's library and show toast."""
+        self._ensure_user_playlists()
+        if not self._user_playlists:
+            return
+        self._user_playlist_index = (self._user_playlist_index + 1) % len(self._user_playlists)
+        pl = self._user_playlists[self._user_playlist_index]
+        self.screen.show_toast(PlaylistToastTask(self.screen, pl['name']))
+
+    def select_prev_playlist(self):
+        """Cycle to the previous playlist in the user's library and show toast."""
+        self._ensure_user_playlists()
+        if not self._user_playlists:
+            return
+        self._user_playlist_index = (self._user_playlist_index - 1) % len(self._user_playlists)
+        pl = self._user_playlists[self._user_playlist_index]
+        self.screen.show_toast(PlaylistToastTask(self.screen, pl['name']))
+
+    def confirm_selected_playlist(self):
+        """Start playback of the currently selected playlist from the user's library."""
+        self._ensure_user_playlists()
+        if not self._user_playlists:
+            return
+        pl = self._user_playlists[self._user_playlist_index]
+        try:
+            self.sp.start_playback(context_uri=pl['uri'])
+            self.screen.show_toast(
+                PlaylistToastTask(self.screen, pl['name'], prefix="Now Playing playlist")
+            )
+        except Exception as e:
+            print(f"[ERROR] Failed to play selected playlist {pl['uri']}: {e}")
 
     # --- Dynamic playlist hotkey management ---
     def register_playlist_hotkey(self, key, playlist_uri):

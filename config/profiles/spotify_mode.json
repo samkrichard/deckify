@@ -105,5 +105,14 @@
     "dial_1_push": {
       "action": "confirm_selected_track"
     }
+    ,"dial_2_clockwise": {
+      "action": "select_next_playlist"
+    },
+    "dial_2_counterclockwise": {
+      "action": "select_prev_playlist"
+    },
+    "dial_2_push": {
+      "action": "confirm_selected_playlist"
+    }
   }
 }
