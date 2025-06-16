@@ -75,13 +75,19 @@ class StreamDeckDeviceManager:
         """
         Handle short and long press events. State True=press, False=release.
         """
-        if state and getattr(self.controller, '_playlist_add_mode', False) \
-               and hasattr(self.controller, '_playlist_hotkeys') \
-               and key in self.controller._playlist_hotkeys:
-            try:
-                self.controller.playlist_hotkey(key)
-            except Exception as e:
-                print(f"[ERROR] Playlist hotkey {key} action failed: {e}")
+        # Press or release while in playlist-add mode: press adds track, release exits mode (no playback)
+        if hasattr(self.controller, '_playlist_add_mode') and getattr(self.controller, '_playlist_add_mode', False) \
+               and hasattr(self.controller, '_playlist_hotkeys') and key in self.controller._playlist_hotkeys:
+            if state:
+                try:
+                    self.controller.playlist_hotkey(key)
+                except Exception as e:
+                    print(f"[ERROR] Playlist add {key} action failed: {e}")
+            else:
+                try:
+                    self.controller._exit_playlist_add_mode()
+                except Exception:
+                    pass
             self._force_update()
             return
         # Long-press mapping takes priority
@@ -105,26 +111,32 @@ class StreamDeckDeviceManager:
                 t.start()
                 self._long_press_timers[key] = t
             else:
-                # on release: cancel pending timer and run short press if long not fired
-                press_time = self._press_times.pop(key, None)
+                # on release: cancel pending timer; run dynamic or fallback short-press if long action didn't fire
+                self._press_times.pop(key, None)
                 t = self._long_press_timers.pop(key, None)
                 if t:
                     t.cancel()
                 if key in self._long_pressed:
+                    # long action already fired; clear flag and do NOT run short-press
                     self._long_pressed.remove(key)
                 else:
-                    short_action = self.button_action_map.get(key)
-                    if short_action:
+                    if hasattr(self.controller, '_playlist_hotkeys') and key in self.controller._playlist_hotkeys:
                         try:
-                            short_action()
+                            self.controller.playlist_hotkey(key)
                         except Exception as e:
-                            print(f"[ERROR] Button {key} short action failed: {e}")
+                            print(f"[ERROR] Playlist hotkey {key} action failed: {e}")
+                    else:
+                        short_action = self.button_action_map.get(key)
+                        if short_action:
+                            try:
+                                short_action()
+                            except Exception as e:
+                                print(f"[ERROR] Button {key} short action failed: {e}")
                 self._force_update()
             return
 
-        # Short-press dynamic playlist hotkey overrides static mapping (when no long-press configured)
-        if state and not key in self.button_long_action_map \
-               and hasattr(self.controller, '_playlist_hotkeys') \
+        # Short-press dynamic playlist hotkey always overrides static mapping
+        if state and hasattr(self.controller, '_playlist_hotkeys') \
                and key in self.controller._playlist_hotkeys:
             try:
                 self.controller.playlist_hotkey(key)

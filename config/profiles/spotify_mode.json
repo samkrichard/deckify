@@ -43,7 +43,7 @@
     "3": {
       "action": "play_playlist",
       "args": [
-        "spotify:playlist:4COQTFkQRSBIZxca4q0MFl"
+        "spotify:playlist:3OtX7J9nq5cNym6tCe5KEp"
       ],
       "label": "Playlist 4",
       "icon": "fetch",
@@ -104,8 +104,8 @@
     },
     "dial_1_push": {
       "action": "confirm_selected_track"
-    }
-    ,"dial_2_clockwise": {
+    },
+    "dial_2_clockwise": {
       "action": "select_next_playlist"
     },
     "dial_2_counterclockwise": {

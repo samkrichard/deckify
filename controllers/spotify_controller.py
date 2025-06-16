@@ -573,7 +573,7 @@ class SpotifyController:
         playback = self.sp.current_playback()
         context = playback.get('context') if playback else None
         playlist_uri = context.get('uri') if context else None
-        if not playlist_uri or 'playlist' not in playlist_uri:
+        if not playlist_uri:
             return
         # store mapping and update button icon to playlist cover
         self._playlist_hotkeys[key] = playlist_uri
@@ -640,8 +640,6 @@ class SpotifyController:
                 self.screen.show_toast(PlaylistAddToastTask(self.screen, info['track'], playlist_name))
             except Exception as e:
                 print(f"[ERROR] Failed to add track to playlist: {e}")
-            # exit add mode after adding
-            self._exit_playlist_add_mode()
         else:
             playlist_uri = self._playlist_hotkeys.get(key)
             if not playlist_uri:
