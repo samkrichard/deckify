@@ -429,7 +429,20 @@ class SpotifyController:
         # Update cached playlist data (even if tracks list is empty)
         self._playlist_uri = playlist_uri
         self._playlist_tracks = tracks
-        self._playlist_track_index = 0
+        # start dial selection on the currently playing track if found
+        idx = 0
+        try:
+            info = self.now_playing_info()
+            if info and info.get('track_id'):
+                tid = info['track_id']
+                for i, t in enumerate(tracks):
+                    # compare track URIs by ID suffix
+                    if t.get('uri', '').split(':')[-1] == tid:
+                        idx = i
+                        break
+        except Exception:
+            pass
+        self._playlist_track_index = idx
 
     def select_next_track(self):
         """Scroll to the next track in the playlist and show toast."""
