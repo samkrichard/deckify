@@ -64,12 +64,14 @@ def build_button_action_map(config_path, controller, renderer=None):
                     print(f"[WARN] No method '{long_action}' found in controller for long press button {key}")
             continue
 
-        # Fetch icon if needed for standard action
+        # Fetch icon if needed for standard action; fallback to generic playlist icon on failure or missing art
         if icon == "fetch" and action_name == "play_playlist" and args:
             try:
-                icon = controller.get_playlist_icon_url(args[0])
+                fetched = controller.get_playlist_icon_url(args[0])
             except Exception as e:
                 print(f"[WARN] Failed to fetch icon for playlist: {e}")
+                fetched = None
+            icon = fetched if fetched else "./assets/playlist.png"
 
         # Update button display for standard action
         if renderer:

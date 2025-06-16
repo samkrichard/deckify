@@ -2,6 +2,7 @@ import time
 import threading
 import json
 import requests
+import logging
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
 from PIL import Image
@@ -28,6 +29,9 @@ class SpotifyController:
     def __init__(self, screen_manager, config_path):
         self.screen = screen_manager
         self.config_path = config_path
+
+        # suppress spotipy.client HTTPError logs; we handle errors gracefully
+        logging.getLogger('spotipy.client').setLevel(logging.CRITICAL)
 
         # Try to access the renderer if available from the screen manager
         self.renderer = getattr(screen_manager, 'renderer', None)
@@ -361,42 +365,85 @@ class SpotifyController:
 
     def _ensure_playlist_tracks(self):
         """Load and cache tracks from the current playlist context."""
+        # Determine current playlist URI from playback context
         try:
             playback = self.sp.current_playback()
             context = playback.get('context') if playback else None
             playlist_uri = context.get('uri') if context else None
-            if not playlist_uri or (playlist_uri == self._playlist_uri and self._playlist_tracks):
-                return
-            playlist_id = playlist_uri.split(":")[-1] if ":" in playlist_uri else playlist_uri
-            tracks = []
-            offset = 0
-            limit = 100
-            while True:
-                resp = self.sp.playlist_items(playlist_id, offset=offset,
-                                               fields='items.track.name,items.track.artists.name,items.track.uri',
-                                               limit=limit)
-                items = resp.get('items', [])
-                for item in items:
-                    track = item.get('track')
-                    if not track:
-                        continue
-                    name = track.get('name')
-                    artists = ', '.join([a.get('name') for a in track.get('artists', [])])
-                    uri = track.get('uri')
-                    tracks.append({'name': name, 'artists': artists, 'uri': uri})
-                if len(items) < limit:
-                    break
-                offset += limit
-            self._playlist_uri = playlist_uri
-            self._playlist_tracks = tracks
-            self._playlist_track_index = 0
         except Exception as e:
-            print(f"[ERROR] Failed to fetch playlist tracks: {e}")
+            print(f"[WARN] Failed to get playback context for playlist: {e}")
+            # clear stale playlist data
+            self._playlist_uri = None
+            self._playlist_tracks = []
+            self._playlist_track_index = 0
+            return
+
+        # Skip if no playlist or already attempted this playlist
+        if not playlist_uri or playlist_uri == self._playlist_uri:
+            return
+
+        playlist_id = playlist_uri.split(":")[-1] if ":" in playlist_uri else playlist_uri
+        tracks = []
+        offset = 0
+        limit = 100
+        # Fetch items in pages; break on errors or end of items
+        while True:
+            try:
+                resp = self.sp.playlist_items(
+                    playlist_id,
+                    offset=offset,
+                    fields='items.track.name,items.track.artists.name,items.track.uri',
+                    limit=limit
+                )
+            except Exception as e:
+                print(f"[WARN] Failed to fetch items for playlist {playlist_uri}: {e}")
+                # inform user this playlist cannot be browsed
+                playlist_name = playlist_id
+                try:
+                    data = self.sp.playlist(playlist_id)
+                    playlist_name = data.get('name', playlist_name)
+                except Exception:
+                    pass
+                self.screen.show_toast(
+                    PlaylistToastTask(
+                        self.screen,
+                        playlist_name,
+                        prefix="Playlist not browsable"
+                    )
+                )
+                break
+
+            items = resp.get('items', [])
+            for item in items:
+                track = item.get('track')
+                if not track:
+                    continue
+                name = track.get('name')
+                artists = ', '.join([a.get('name') for a in track.get('artists', [])])
+                uri = track.get('uri')
+                tracks.append({'name': name, 'artists': artists, 'uri': uri})
+            if len(items) < limit:
+                break
+            offset += limit
+
+        # Update cached playlist data (even if tracks list is empty)
+        self._playlist_uri = playlist_uri
+        self._playlist_tracks = tracks
+        self._playlist_track_index = 0
 
     def select_next_track(self):
         """Scroll to the next track in the playlist and show toast."""
         self._ensure_playlist_tracks()
         if not self._playlist_tracks:
+            name = self._playlist_uri.split(':')[-1] if self._playlist_uri else ''
+            try:
+                data = self.sp.playlist(name)
+                name = data.get('name', name)
+            except Exception:
+                pass
+            self.screen.show_toast(
+                PlaylistToastTask(self.screen, name, prefix="Playlist not browsable")
+            )
             return
         self._playlist_track_index = (self._playlist_track_index + 1) % len(self._playlist_tracks)
         track = self._playlist_tracks[self._playlist_track_index]
@@ -406,6 +453,15 @@ class SpotifyController:
         """Scroll to the previous track in the playlist and show toast."""
         self._ensure_playlist_tracks()
         if not self._playlist_tracks:
+            name = self._playlist_uri.split(':')[-1] if self._playlist_uri else ''
+            try:
+                data = self.sp.playlist(name)
+                name = data.get('name', name)
+            except Exception:
+                pass
+            self.screen.show_toast(
+                PlaylistToastTask(self.screen, name, prefix="Playlist not browsable")
+            )
             return
         self._playlist_track_index = (self._playlist_track_index - 1) % len(self._playlist_tracks)
         track = self._playlist_tracks[self._playlist_track_index]
@@ -445,9 +501,13 @@ class SpotifyController:
         # store mapping and update button icon to playlist cover
         self._playlist_hotkeys[key] = playlist_uri
         icon_url = self.get_playlist_icon_url(playlist_uri)
-        if self.renderer and icon_url:
+        if self.renderer:
             try:
-                self.renderer.update_button(key, image=icon_url)
+                if icon_url:
+                    self.renderer.update_button(key, image=icon_url)
+                else:
+                    # fallback to generic playlist icon when none available
+                    self.renderer.update_button(key, image="./assets/playlist.png")
             except Exception as e:
                 print(f"[WARN] Failed to update playlist hotkey icon for button {key}: {e}")
 
@@ -465,6 +525,21 @@ class SpotifyController:
                 print(f"[WARN] Cannot persist playlist hotkey: button {key} not found in config")
         except Exception as e:
             print(f"[ERROR] Failed to update playlist hotkey in config: {e}")
+
+        # confirmation toast for linked playlist
+        try:
+            pid = playlist_uri.split(':')[-1] if ':' in playlist_uri else playlist_uri
+            name = pid
+            try:
+                data = self.sp.playlist(pid)
+                name = data.get('name', name)
+            except Exception:
+                pass
+            self.screen.show_toast(
+                PlaylistToastTask(self.screen, name, prefix="Linked playlist")
+            )
+        except Exception as e:
+            print(f"[WARN] Failed to show link confirmation toast: {e}")
 
     def playlist_hotkey(self, key):
         """Handle press of a playlist hotkey: play or add track depending on mode."""

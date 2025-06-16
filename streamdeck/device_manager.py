@@ -99,17 +99,26 @@ class StreamDeckDeviceManager:
                     except Exception as e:
                         print(f"[ERROR] Button {key} long action failed: {e}")
                 else:
-                    short_action = self.button_action_map.get(key)
-                    if short_action:
+                    # for playlist-link buttons, use dynamic playlist hotkey playback
+                    if hasattr(self.controller, '_playlist_hotkeys') and key in self.controller._playlist_hotkeys:
                         try:
-                            short_action()
+                            self.controller.playlist_hotkey(key)
                         except Exception as e:
-                            print(f"[ERROR] Button {key} short action failed: {e}")
+                            print(f"[ERROR] Playlist hotkey {key} action failed: {e}")
+                    else:
+                        short_action = self.button_action_map.get(key)
+                        if short_action:
+                            try:
+                                short_action()
+                            except Exception as e:
+                                print(f"[ERROR] Button {key} short action failed: {e}")
                 self._force_update()
             return
 
-        # Short-press dynamic playlist hotkey overrides static mapping
-        if state and hasattr(self.controller, '_playlist_hotkeys') and key in self.controller._playlist_hotkeys:
+        # Short-press dynamic playlist hotkey overrides static mapping (when no long-press configured)
+        if state and not key in self.button_long_action_map \
+               and hasattr(self.controller, '_playlist_hotkeys') \
+               and key in self.controller._playlist_hotkeys:
             try:
                 self.controller.playlist_hotkey(key)
             except Exception as e:
