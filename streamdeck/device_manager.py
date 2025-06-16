@@ -3,6 +3,7 @@ from StreamDeck.Devices.StreamDeckPlus import DialEventType
 from actions.action_map import build_button_action_map, build_dial_action_map
 from StreamDeck.Devices.StreamDeck import TouchscreenEventType
 import time
+import threading
 from render.tasks.render_tasks.now_playing_task import NowPlayingTask
 
 class StreamDeckDeviceManager:
@@ -15,6 +16,9 @@ class StreamDeckDeviceManager:
         self.dial_action_map = {}
         # track press timestamps for long-press detection
         self._press_times = {}
+        # timers and flags for firing long-press actions immediately on timeout
+        self._long_press_timers = {}
+        self._long_pressed = set()
         self.controller = None
 
     def initialize(self, config_path, controller, renderer):
@@ -83,35 +87,38 @@ class StreamDeckDeviceManager:
         # Long-press mapping takes priority
         long_entry = self.button_long_action_map.get(key)
         if long_entry:
-            now = time.time()
             method_long, args_long, timeout = long_entry
             if state:
-                # record when button was pressed
-                self._press_times[key] = now
-            else:
-                press_time = self._press_times.pop(key, None)
-                if press_time is None:
-                    return
-                duration = now - press_time
-                if duration >= timeout:
-                    try:
-                        method_long(*args_long)
-                    except Exception as e:
-                        print(f"[ERROR] Button {key} long action failed: {e}")
-                else:
-                    # for playlist-link buttons, use dynamic playlist hotkey playback
-                    if hasattr(self.controller, '_playlist_hotkeys') and key in self.controller._playlist_hotkeys:
+                # on press: start timer to fire long action after timeout
+                self._press_times[key] = time.time()
+                def _fire():
+                    # only fire if still pressed
+                    if key in self._press_times:
                         try:
-                            self.controller.playlist_hotkey(key)
+                            method_long(*args_long)
                         except Exception as e:
-                            print(f"[ERROR] Playlist hotkey {key} action failed: {e}")
-                    else:
-                        short_action = self.button_action_map.get(key)
-                        if short_action:
-                            try:
-                                short_action()
-                            except Exception as e:
-                                print(f"[ERROR] Button {key} short action failed: {e}")
+                            print(f"[ERROR] Button {key} long action failed: {e}")
+                        self._force_update()
+                        self._long_pressed.add(key)
+                t = threading.Timer(timeout, _fire)
+                t.daemon = True
+                t.start()
+                self._long_press_timers[key] = t
+            else:
+                # on release: cancel pending timer and run short press if long not fired
+                press_time = self._press_times.pop(key, None)
+                t = self._long_press_timers.pop(key, None)
+                if t:
+                    t.cancel()
+                if key in self._long_pressed:
+                    self._long_pressed.remove(key)
+                else:
+                    short_action = self.button_action_map.get(key)
+                    if short_action:
+                        try:
+                            short_action()
+                        except Exception as e:
+                            print(f"[ERROR] Button {key} short action failed: {e}")
                 self._force_update()
             return
 
