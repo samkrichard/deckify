@@ -16,9 +16,8 @@ class StreamDeckDeviceManager:
         self.dial_action_map = {}
         # track press timestamps for long-press detection
         self._press_times = {}
-        # timers and flags for firing long-press actions immediately on timeout
+        # timers for firing long-press actions immediately on timeout
         self._long_press_timers = {}
-        self._long_pressed = set()
         self.controller = None
 
     def initialize(self, config_path, controller, renderer):
@@ -95,43 +94,44 @@ class StreamDeckDeviceManager:
         if long_entry:
             method_long, args_long, timeout = long_entry
             if state:
-                # on press: start timer to fire long action after timeout
+                # on press: schedule long action to fire after timeout
                 self._press_times[key] = time.time()
                 def _fire():
-                    # only fire if still pressed
+                    # only fire long action if still pressed after timeout
                     if key in self._press_times:
                         try:
                             method_long(*args_long)
                         except Exception as e:
                             print(f"[ERROR] Button {key} long action failed: {e}")
                         self._force_update()
-                        self._long_pressed.add(key)
                 t = threading.Timer(timeout, _fire)
                 t.daemon = True
                 t.start()
-                self._long_press_timers[key] = t
+                self._long_press_timers[key] = (t, timeout)
             else:
-                # on release: cancel pending timer; run dynamic or fallback short-press if long action didn't fire
-                self._press_times.pop(key, None)
-                t = self._long_press_timers.pop(key, None)
-                if t:
-                    t.cancel()
-                if key in self._long_pressed:
-                    # long action already fired; clear flag and do NOT run short-press
-                    self._long_pressed.remove(key)
-                else:
-                    if hasattr(self.controller, '_playlist_hotkeys') and key in self.controller._playlist_hotkeys:
-                        try:
-                            self.controller.playlist_hotkey(key)
-                        except Exception as e:
-                            print(f"[ERROR] Playlist hotkey {key} action failed: {e}")
-                    else:
-                        short_action = self.button_action_map.get(key)
-                        if short_action:
+                # on release: cancel pending timer, then decide short vs long by elapsed
+                press_time = self._press_times.pop(key, None)
+                timer_entry = self._long_press_timers.pop(key, None)
+                if timer_entry:
+                    timer, _ = timer_entry
+                    timer.cancel()
+                # short if released before timeout, otherwise long already fired
+                if press_time is not None:
+                    elapsed = time.time() - press_time
+                    if elapsed < timer_entry[1]:
+                        # short release: dynamic playlist or fallback action
+                        if hasattr(self.controller, '_playlist_hotkeys') and key in self.controller._playlist_hotkeys:
                             try:
-                                short_action()
+                                self.controller.playlist_hotkey(key)
                             except Exception as e:
-                                print(f"[ERROR] Button {key} short action failed: {e}")
+                                print(f"[ERROR] Playlist hotkey {key} action failed: {e}")
+                        else:
+                            short_action = self.button_action_map.get(key)
+                            if short_action:
+                                try:
+                                    short_action()
+                                except Exception as e:
+                                    print(f"[ERROR] Button {key} short action failed: {e}")
                 self._force_update()
             return
 
