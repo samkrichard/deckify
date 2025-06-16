@@ -43,15 +43,10 @@
     "3": {
       "action": "play_playlist",
       "args": [
-        "spotify:playlist:4COQTFkQRSBIZxca4q0MFl"
+        "spotify:user:winteredge:collection"
       ],
-      "label": "Playlist 4",
-      "icon": "fetch",
-      "long_action": "link_playlist_hotkey",
-      "long_args": [
-        3
-      ],
-      "long_timeout": 1.0
+      "label": "Liked Songs",
+      "icon": "./assets/liked_songs.png"
     },
     "4": {
       "action": "previous_track",
