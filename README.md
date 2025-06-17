@@ -26,7 +26,7 @@
 ## Installation
 
 ```bash
-git clone https://github.com/samkrichard/Deckify.git
+git clone https://github.com/samkrichard/deckify.git
 cd Deckify
 python3 -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
