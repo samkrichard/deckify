@@ -38,7 +38,7 @@ Create a `.env` file in the root directory:
 ```env
 SPOTIPY_CLIENT_ID=your_spotify_client_id
 SPOTIPY_CLIENT_SECRET=your_spotify_client_secret
-SPOTIPY_REDIRECT_URI=http://localhost:8888/callback
+SPOTIPY_REDIRECT_URI=http://127.0.0.1:8888/callback
 ```
 
 ## Starting the App
