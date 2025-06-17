@@ -61,7 +61,7 @@ To use the Spotify profile, create a Spotify Developer App:
 2. Log in and click "Create an App"
 3. Add this Redirect URI:
    ```
-   http://localhost:8888/callback
+   http://127.0.0.1:8888/callback
    ```
 4. Copy your **Client ID** and **Client Secret** into your `.env` file
 
