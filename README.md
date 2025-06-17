@@ -1,6 +1,6 @@
 # Deckify
 
-**Deckify** is a modular, open-source control and automation framework for Elgato StreamDeck devices, with powerful profile support and flexible integration starting with Spotify.
+**Deckify** is a modular, open-source control and automation framework for Elgato StreamDeck devices, written in Python and compatible with Windows, macOS, and Linux. It features powerful profile support and flexible integrations, starting with Spotify.
 
 ## Features
 
@@ -9,9 +9,9 @@
   - Volume control via dial
   - Playlist browsing and selection via dial
   - Track browsing within playlists via dial
-  - Liked Songs treated as a playlist (full support)
+  - Liked Songs treated as a playlist
   - Track like/unlike with a single button press
-  - Playlist hotkeys (assigned to specific buttons):
+  - Playlist hotkeys:
     - Tap to play the associated playlist
     - Long press to rebind the button to the currently playing playlist
   - Add-to-playlist mode:
@@ -20,20 +20,13 @@
     - Mode automatically exits after a short timeout
 - Real-time Now Playing display with album art and metadata
 - Dynamic button icons and toast notifications
-- Configuration driven by JSON profile files
-- Designed for easy expansion to additional profiles (system controls, OBS, etc.)
-
-Built using:
-- [Spotipy](https://github.com/plamere/spotipy)
-- [python-elgato-streamdeck](https://github.com/abcminiuser/python-elgato-streamdeck)
-- [Pillow](https://python-pillow.org)
-
----
+- Configuration via JSON profile files
+- Designed for easy expansion to additional profiles (system controls, etc.)
 
 ## Installation
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/Deckify.git
+git clone https://github.com/samkrichard/Deckify.git
 cd Deckify
 python3 -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
@@ -48,15 +41,17 @@ SPOTIPY_CLIENT_SECRET=your_spotify_client_secret
 SPOTIPY_REDIRECT_URI=http://localhost:8888/callback
 ```
 
-Then start the app:
+## Starting the App
+
+With your virtual environment activated, you can start Deckify in either of these ways:
 
 ```bash
+# Option 1 (standard Python):
 python deckify.py
-# or, if your entrypoint is named differently:
-python streamdeckd.py
-```
 
----
+# Option 2 (if you've added a shebang and made the file executable):
+./deckify.py
+```
 
 ## Spotify API Setup
 
@@ -64,81 +59,63 @@ To use the Spotify profile, create a Spotify Developer App:
 
 1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
 2. Log in and click "Create an App"
-3. Set any name/description
-4. Add this Redirect URI:
+3. Add this Redirect URI:
    ```
    http://localhost:8888/callback
    ```
-5. Copy your **Client ID** and **Client Secret**, and add them to your `.env` file
+4. Copy your **Client ID** and **Client Secret** into your `.env` file
 
-**Note:** Spotify Web API playback requires a Spotify Premium account.
-
----
+A Spotify Premium account is required for Web API playback.
 
 ## Requirements
 
 - Python 3.8+
-- Elgato StreamDeck or StreamDeck+ device connected via USB
+- Elgato StreamDeck or StreamDeck+ device (USB)
 - Spotify Premium account (for Spotify integration)
-- Dependencies (from `requirements.txt`):
-  - `spotipy>=2.25.1`
-  - `pillow>=11.2.1`
-  - `streamdeck>=0.9.6`
-  - `python-dotenv>=1.1.0`
-
----
+- Dependencies (see `requirements.txt`):
+  - `spotipy`
+  - `pillow`
+  - `streamdeck`
+  - `python-dotenv`
 
 ## Linux USB Access
 
-To use the StreamDeck without root on Linux:
+To use the StreamDeck without root on Linux, add a udev rule:
 
-1. Create a udev rule:
+```bash
+sudo nano /etc/udev/rules.d/99-streamdeck.rules
+```
 
-   ```bash
-   sudo nano /etc/udev/rules.d/99-streamdeck.rules
-   ```
+Paste:
 
-2. Paste:
+```
+SUBSYSTEM=="usb", ATTR{idVendor}=="0fd9", MODE="0666", GROUP="plugdev"
+```
 
-   ```
-   SUBSYSTEM=="usb", ATTR{idVendor}=="0fd9", MODE="0666", GROUP="plugdev"
-   ```
+Then run:
 
-3. Then run:
+```bash
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+sudo usermod -aG plugdev $USER
+```
 
-   ```bash
-   sudo udevadm control --reload-rules
-   sudo udevadm trigger
-   sudo usermod -aG plugdev $USER
-   ```
-
-4. Log out and back in to apply group changes.
-
----
+Log out and back in to apply the group change.
 
 ## Planned Features
 
 - Profile switching via dial or touchscreen
 - System control profile (volume, brightness, app launching)
-- OBS and streaming platform integrations
-- Plugin-style modular architecture for new integrations
-
----
+- Plugin-style modular architecture
 
 ## Credits and Attribution
 
-- Icons provided by [Icons8](https://icons8.com), used under their free license with attribution.
+- Icons provided by [Icons8](https://icons8.com) under their free license with attribution.
 - This project uses:
   - [Spotipy](https://github.com/plamere/spotipy)
   - [python-elgato-streamdeck](https://github.com/abcminiuser/python-elgato-streamdeck)
   - [Pillow](https://python-pillow.org)
 
----
-
 ## License
 
 MIT License — see `LICENSE` for details.
-
----
-
-> *Deckify is not affiliated with Elgato or Spotify. This project is unrelated to any card game or TCG software.*
