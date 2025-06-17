@@ -1,3 +1,8 @@
+"""
+volume_toast_task.py - Task for displaying a temporary volume change toast.
+
+Creates and renders a volume level bar that lingers briefly before expiring.
+"""
 import time
 
 class VolumeToastTask:

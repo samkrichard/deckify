@@ -1,3 +1,8 @@
+"""
+playlist_toast_task.py - Task for displaying playlist related toasts.
+
+Includes tasks for showing playlist names, add-to-playlist confirmation, and icons.
+"""
 import os
 import time
 from PIL import Image, ImageDraw, ImageOps

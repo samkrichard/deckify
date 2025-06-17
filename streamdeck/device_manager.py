@@ -1,3 +1,9 @@
+"""
+device_manager.py - Stream Deck hardware manager for Deckify.
+
+Handles device initialization, input callbacks, and dispatching
+button and dial events to controller actions.
+"""
 from StreamDeck.DeviceManager import DeviceManager as HardwareDeviceManager
 from StreamDeck.Devices.StreamDeckPlus import DialEventType
 from actions.action_map import build_button_action_map, build_dial_action_map
@@ -7,6 +13,7 @@ import threading
 from render.tasks.render_tasks.now_playing_task import NowPlayingTask
 
 class StreamDeckDeviceManager:
+    """Manage Stream Deck hardware, including button and dial event callbacks."""
     def __init__(self):
         self.deck = None
         # short press action map: key -> callable()
@@ -181,8 +188,6 @@ class StreamDeckDeviceManager:
             return
         x = value.get('x')
         y = value.get('y')
-
-        print(f'Touch at x: {x}, y: {y}')
 
         if x is None or y is None:
             return

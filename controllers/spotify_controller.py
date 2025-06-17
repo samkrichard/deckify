@@ -1,3 +1,9 @@
+"""
+spotify_controller.py - SpotifyController module for Deckify
+
+Handles communication with the Spotify Web API, background polling,
+and mapping user interactions to Spotify playback and playlist operations.
+"""
 import time
 import threading
 import json
@@ -11,9 +17,6 @@ from render.tasks.render_tasks.now_playing_task import NowPlayingTask
 from render.tasks.render_tasks.volume_toast_task import VolumeToastTask
 from render.tasks.render_tasks.track_toast_task import TrackToastTask
 from render.tasks.render_tasks.playlist_toast_task import PlaylistToastTask, PlaylistAddToastTask
-from dotenv import load_dotenv
-
-load_dotenv()
 
 SCOPES = [
     "user-read-playback-state",
@@ -70,6 +73,19 @@ class SpotifyController:
         self._stop_event = threading.Event()
         self._poll_thread = threading.Thread(target=self._poll_loop, daemon=True)
         self._poll_thread.start()
+
+    def _id_from_uri(self, uri):
+        """Extract the ID portion from a Spotify URI or return it unchanged."""
+        return uri.split(':')[-1] if uri and ':' in uri else uri
+
+    def _fetch_playlist_name(self, playlist_uri):
+        """Return the playlist name for a given URI, falling back to ID on error."""
+        playlist_id = self._id_from_uri(playlist_uri)
+        try:
+            data = self.sp.playlist(playlist_id)
+            return data.get('name', playlist_id)
+        except Exception:
+            return playlist_id
 
     def update(self, now, force=False):
         """
@@ -212,15 +228,12 @@ class SpotifyController:
         """Start playback of a given playlist URI."""
         try:
             self.sp.start_playback(context_uri=playlist_uri)
-            playlist_id = playlist_uri.split(':')[-1] if ':' in playlist_uri else playlist_uri
-            playlist_name = playlist_id
-            try:
-                data = self.sp.playlist(playlist_id)
-                playlist_name = data.get('name', playlist_name)
-            except Exception as e:
-                print(f"[WARN] Failed to fetch playlist name for toast: {e}")
             self.screen.show_toast(
-                PlaylistToastTask(self.screen, playlist_name, prefix="Now Playing playlist")
+                PlaylistToastTask(
+                    self.screen,
+                    self._fetch_playlist_name(playlist_uri),
+                    prefix="Now Playing playlist",
+                )
             )
         except Exception as e:
             print(f"[ERROR] Failed to play playlist {playlist_uri}: {e}")
@@ -450,14 +463,12 @@ class SpotifyController:
         """Scroll to the next track in the playlist and show toast."""
         self._ensure_playlist_tracks()
         if not self._playlist_tracks:
-            name = self._playlist_uri.split(':')[-1] if self._playlist_uri else ''
-            try:
-                data = self.sp.playlist(name)
-                name = data.get('name', name)
-            except Exception:
-                pass
             self.screen.show_toast(
-                PlaylistToastTask(self.screen, name, prefix="Playlist not browsable")
+                PlaylistToastTask(
+                    self.screen,
+                    self._fetch_playlist_name(self._playlist_uri),
+                    prefix="Playlist not browsable",
+                )
             )
             return
         self._playlist_track_index = (self._playlist_track_index + 1) % len(self._playlist_tracks)
@@ -468,14 +479,12 @@ class SpotifyController:
         """Scroll to the previous track in the playlist and show toast."""
         self._ensure_playlist_tracks()
         if not self._playlist_tracks:
-            name = self._playlist_uri.split(':')[-1] if self._playlist_uri else ''
-            try:
-                data = self.sp.playlist(name)
-                name = data.get('name', name)
-            except Exception:
-                pass
             self.screen.show_toast(
-                PlaylistToastTask(self.screen, name, prefix="Playlist not browsable")
+                PlaylistToastTask(
+                    self.screen,
+                    self._fetch_playlist_name(self._playlist_uri),
+                    prefix="Playlist not browsable",
+                )
             )
             return
         self._playlist_track_index = (self._playlist_track_index - 1) % len(self._playlist_tracks)
@@ -571,93 +580,74 @@ class SpotifyController:
         if not info:
             return
         playback = self.sp.current_playback()
-        context = playback.get('context') if playback else None
-        playlist_uri = context.get('uri') if context else None
+        playlist_uri = playback.get("context", {}).get("uri") if playback else None
         if not playlist_uri:
             return
-        # store mapping and update button icon to playlist cover
+
         self._playlist_hotkeys[key] = playlist_uri
         icon_url = self.get_playlist_icon_url(playlist_uri)
         if self.renderer:
             try:
-                if icon_url:
-                    self.renderer.update_button(key, image=icon_url)
-                else:
-                    # fallback to generic playlist icon when none available
-                    self.renderer.update_button(key, image="./assets/playlist.png")
+                self.renderer.update_button(
+                    key, image=icon_url or "./assets/playlist.png"
+                )
             except Exception as e:
                 print(f"[WARN] Failed to update playlist hotkey icon for button {key}: {e}")
 
-        # persist updated playlist URI in config file for next sessions
+        # Persist updated playlist URI in config for next sessions
         try:
-            with open(self.config_path, 'r') as f:
+            with open(self.config_path, "r") as f:
                 config = json.load(f)
-            key_str = str(key)
-            buttons = config.get("buttons", {})
-            if key_str in buttons:
-                buttons[key_str]["args"] = [playlist_uri]
-                with open(self.config_path, 'w') as f:
+            btn = config.get("buttons", {}).get(str(key))
+            if btn:
+                btn["args"] = [playlist_uri]
+                with open(self.config_path, "w") as f:
                     json.dump(config, f, indent=2)
             else:
                 print(f"[WARN] Cannot persist playlist hotkey: button {key} not found in config")
         except Exception as e:
             print(f"[ERROR] Failed to update playlist hotkey in config: {e}")
 
-        # confirmation toast for linked playlist
+        # Confirmation toast for linked playlist
         try:
-            pid = playlist_uri.split(':')[-1] if ':' in playlist_uri else playlist_uri
-            name = pid
-            try:
-                data = self.sp.playlist(pid)
-                name = data.get('name', name)
-            except Exception:
-                pass
             self.screen.show_toast(
-                PlaylistToastTask(self.screen, name, prefix="Linked playlist")
+                PlaylistToastTask(
+                    self.screen,
+                    self._fetch_playlist_name(playlist_uri),
+                    prefix="Linked playlist",
+                )
             )
         except Exception as e:
             print(f"[WARN] Failed to show link confirmation toast: {e}")
 
     def playlist_hotkey(self, key):
         """Handle press of a playlist hotkey: play or add track depending on mode."""
+        playlist_uri = self._playlist_hotkeys.get(key)
+        if not playlist_uri:
+            return
         if self._playlist_add_mode:
             info = self.now_playing_info()
             if not info:
                 return
-            track_uri = info['track_id']
-            playlist_uri = self._playlist_hotkeys.get(key)
-            if not playlist_uri:
-                return
-            playlist_id = playlist_uri.split(':')[-1] if ':' in playlist_uri else playlist_uri
             try:
-                self.sp.playlist_add_items(playlist_id, [track_uri])
-                playlist_name = playlist_id
-                try:
-                    data = self.sp.playlist(playlist_id)
-                    playlist_name = data.get('name', playlist_name)
-                except Exception as e:
-                    print(f"[WARN] Failed to fetch playlist name for toast: {e}")
-                self.screen.show_toast(PlaylistAddToastTask(self.screen, info['track'], playlist_name))
+                self.sp.playlist_add_items(self._id_from_uri(playlist_uri), [info["track_id"]])
+                self.screen.show_toast(
+                    PlaylistAddToastTask(
+                        self.screen,
+                        info["track"],
+                        self._fetch_playlist_name(playlist_uri),
+                    )
+                )
             except Exception as e:
                 print(f"[ERROR] Failed to add track to playlist: {e}")
         else:
-            playlist_uri = self._playlist_hotkeys.get(key)
-            if not playlist_uri:
-                return
-            playlist_id = playlist_uri.split(':')[-1] if ':' in playlist_uri else playlist_uri
             try:
                 self.sp.start_playback(context_uri=playlist_uri)
-                playlist_name = playlist_id
-                try:
-                    data = self.sp.playlist(playlist_id)
-                    playlist_name = data.get('name', playlist_name)
-                except Exception as e:
-                    print(f"[WARN] Failed to fetch playlist name for toast: {e}")
                 self.screen.show_toast(
                     PlaylistToastTask(
                         self.screen,
-                        playlist_name,
-                        prefix="Now Playing playlist"
+                        self._fetch_playlist_name(playlist_uri),
+                        prefix="Now Playing playlist",
                     )
                 )
             except Exception as e:

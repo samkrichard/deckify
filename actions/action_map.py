@@ -1,6 +1,13 @@
+"""
+action_map.py - Build mappings from configuration to controller actions.
+
+This module reads button and dial configurations and constructs
+callable mappings for short and long press events.
+"""
 import json
 
 def build_button_action_map(config_path, controller, renderer=None):
+    """Build mapping of button keys to controller actions based on configuration."""
     with open(config_path, 'r') as f:
         config = json.load(f)
 
@@ -97,6 +104,7 @@ def build_button_action_map(config_path, controller, renderer=None):
 
 
 def build_dial_action_map(config_path, controller):
+    """Build mapping of dial events to controller actions based on configuration."""
     with open(config_path, 'r') as f:
         config = json.load(f)
 

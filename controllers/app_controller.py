@@ -1,11 +1,17 @@
+"""
+app_controller.py - Main application controller for Deckify.
+
+Orchestrates device management, screen rendering, and profile controllers.
+"""
 import time
 import asyncio
 from streamdeck.device_manager import StreamDeckDeviceManager
 from controllers.spotify_controller import SpotifyController
-from render.screen_manager import ScreenManager  # You'll build this
+from render.screen_manager import ScreenManager
 
 
 class AppController:
+    """Orchestrates the hardware, screen, and controllers for the Deckify application."""
     def __init__(self, config_path):
         self.config_path = config_path
         self.deck = None

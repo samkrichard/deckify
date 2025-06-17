@@ -1,7 +1,14 @@
+"""
+now_playing_task.py - Task for rendering the Now Playing view on the touchscreen.
+
+Renders album art, track/artist text with scrolling, progress bar, and control icons.
+"""
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 import time
 
 class NowPlayingTask:
+    """Task to render the Now Playing screen, including album art, scrolling text,
+    progress bar, and shuffle/repeat controls."""
     ICON_NAMES = ["shuffle", "repeat"]
     ICON_SIZE = 40
     ICON_PADDING = 8

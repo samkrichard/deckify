@@ -1,9 +1,16 @@
+"""
+display.py - Core rendering library for Deckify.
+
+Provides methods to render button icons, volume toasts, and the
+Now Playing screen, and handles pushing images to the Stream Deck.
+"""
 import requests
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 from io import BytesIO
 import threading
 
 class Renderer:
+    """Renderer for Stream Deck buttons and touchscreen using PIL images."""
     def __init__(self, deck, button_size=(120, 120)):
         self.deck = deck
         self.button_size = button_size

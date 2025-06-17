@@ -1,9 +1,16 @@
+"""
+screen_manager.py - Manage screen views and toast tasks in Deckify.
+
+Provides synchronous and asynchronous update loops for rendering
+persistent views and temporary toast messages on the Stream Deck touchscreen.
+"""
 import time
 import asyncio
-from render.display import Renderer  # Your existing PIL-based renderer
+from render.display import Renderer
 from collections import deque
 
 class ScreenManager:
+    """Manage the current view and toast queue, delegating rendering to the Renderer."""
     def __init__(self, deck):
         self.renderer = Renderer(deck)
         self.current_task = None

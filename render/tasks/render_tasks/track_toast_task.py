@@ -1,3 +1,8 @@
+"""
+track_toast_task.py - Task for displaying a selected track notification.
+
+Renders a centered text toast showing the track and artist name.
+"""
 import time
 
 class TrackToastTask:
